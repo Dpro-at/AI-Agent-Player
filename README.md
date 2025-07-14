@@ -43,7 +43,6 @@ AI Agent Player is a modern, full-stack platform designed to empower businesses 
 ├── frontend/   # React + TypeScript frontend, UI, services
 ├── docs/       # Official documentation (API, database, guides)
 ├── test/       # Backend test scripts (organized)
-├── .cursor/rules/ # Project rules & standards (enforced)
 └── README.md   # Project overview (this file)
 ```
 
@@ -74,7 +73,6 @@ npm run dev
 - **Full Docs:** [`docs/`](./docs/)
 - **API Reference:** [`docs/02-api/`](./docs/02-api/)
 - **Database Schema:** [`docs/01-database/`](./docs/01-database/)
-- **Rules & Standards:** [`.cursor/rules/`](.cursor/rules/)
 
 ---
 
@@ -83,7 +81,6 @@ npm run dev
 - All backend tests in `backend/test/` only
 - No temporary/demo/test files in root or production folders
 - One `README.md` per main directory
-- See `.cursor/rules/` for full standards
 
 ---
 
