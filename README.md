@@ -23,8 +23,6 @@ AI Agent Player is a modern, full-stack platform designed to empower businesses 
 - **Database:** PostgreSQL (prod) / SQLite (dev), SQLAlchemy ORM
 - **API:** 130+ REST endpoints, JWT authentication, OpenAPI docs
 - **Testing:** Comprehensive suite, all tests in `backend/test/`
-- **Rules:** Strict project standards in `.cursor/rules/`
-
 ---
 
 ## ✨ Key Features
