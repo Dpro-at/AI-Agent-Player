@@ -1,0 +1,483 @@
+[
+  {
+    "server": "ollama",
+    "name": "Ollama",
+    "host": "localhost",
+    "port": "11434",
+    "endpoints_tested": 5,
+    "working_endpoints": [
+      {
+        "endpoint": "/api/tags",
+        "result": {
+          "url": "http://localhost:11434/api/tags",
+          "status_code": 200,
+          "success": true,
+          "response_time": 2.049124,
+          "content_type": "application/json; charset=utf-8",
+          "response_size": 676,
+          "json_response": true,
+          "data_keys": [
+            "models"
+          ]
+        }
+      }
+    ],
+    "failed_endpoints": [
+      {
+        "endpoint": "/api/generate",
+        "result": {
+          "url": "http://localhost:11434/api/generate",
+          "status_code": 405,
+          "success": false,
+          "response_time": 2.043626,
+          "content_type": "text/plain",
+          "response_size": 22,
+          "json_response": false,
+          "text_response": "405 method not allowed"
+        }
+      },
+      {
+        "endpoint": "/api/chat",
+        "result": {
+          "url": "http://localhost:11434/api/chat",
+          "status_code": 405,
+          "success": false,
+          "response_time": 2.046291,
+          "content_type": "text/plain",
+          "response_size": 22,
+          "json_response": false,
+          "text_response": "405 method not allowed"
+        }
+      },
+      {
+        "endpoint": "/api/show",
+        "result": {
+          "url": "http://localhost:11434/api/show",
+          "status_code": 405,
+          "success": false,
+          "response_time": 2.040684,
+          "content_type": "text/plain",
+          "response_size": 22,
+          "json_response": false,
+          "text_response": "405 method not allowed"
+        }
+      },
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:11434/v1/chat/completions",
+          "status_code": 405,
+          "success": false,
+          "response_time": 2.045033,
+          "content_type": "text/plain",
+          "response_size": 22,
+          "json_response": false,
+          "text_response": "405 method not allowed"
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:11434/api/tags",
+      "status_code": 200,
+      "success": true,
+      "response_time": 2.047509,
+      "content_type": "application/json; charset=utf-8",
+      "response_size": 676,
+      "json_response": true,
+      "data_keys": [
+        "models"
+      ]
+    },
+    "is_running": true
+  },
+  {
+    "server": "lmstudio",
+    "name": "LM Studio",
+    "host": "localhost",
+    "port": "1234",
+    "endpoints_tested": 3,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:1234/v1/chat/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/models",
+        "result": {
+          "url": "http://localhost:1234/v1/models",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/completions",
+        "result": {
+          "url": "http://localhost:1234/v1/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:1234/v1/models",
+      "error": "Connection refused - Server not running",
+      "success": false
+    },
+    "is_running": false
+  },
+  {
+    "server": "textgen_webui",
+    "name": "Text Generation WebUI (oobabooga)",
+    "host": "localhost",
+    "port": "5000",
+    "endpoints_tested": 4,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/api/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:5000/api/v1/chat/completions",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.001372,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/api/v1/models",
+        "result": {
+          "url": "http://localhost:5000/api/v1/models",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.000688,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/api/v1/completions",
+        "result": {
+          "url": "http://localhost:5000/api/v1/completions",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.000636,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:5000/v1/chat/completions",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.0006,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:5000/api/v1/models",
+      "status_code": 403,
+      "success": false,
+      "response_time": 0.021377,
+      "content_type": "",
+      "response_size": 0,
+      "json_response": false,
+      "text_response": ""
+    },
+    "is_running": false
+  },
+  {
+    "server": "localai",
+    "name": "LocalAI",
+    "host": "localhost",
+    "port": "8080",
+    "endpoints_tested": 4,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:8080/v1/chat/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/models",
+        "result": {
+          "url": "http://localhost:8080/v1/models",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/completions",
+        "result": {
+          "url": "http://localhost:8080/v1/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/embeddings",
+        "result": {
+          "url": "http://localhost:8080/v1/embeddings",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:8080/v1/models",
+      "error": "Connection refused - Server not running",
+      "success": false
+    },
+    "is_running": false
+  },
+  {
+    "server": "koboldai",
+    "name": "KoboldAI",
+    "host": "localhost",
+    "port": "5000",
+    "endpoints_tested": 4,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/api/v1/generate",
+        "result": {
+          "url": "http://localhost:5000/api/v1/generate",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.024612,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/api/latest/generate",
+        "result": {
+          "url": "http://localhost:5000/api/latest/generate",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.000898,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/api/v1/model",
+        "result": {
+          "url": "http://localhost:5000/api/v1/model",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.000705,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      },
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:5000/v1/chat/completions",
+          "status_code": 403,
+          "success": false,
+          "response_time": 0.00062,
+          "content_type": "",
+          "response_size": 0,
+          "json_response": false,
+          "text_response": ""
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:5000/api/v1/model",
+      "status_code": 403,
+      "success": false,
+      "response_time": 0.002793,
+      "content_type": "",
+      "response_size": 0,
+      "json_response": false,
+      "text_response": ""
+    },
+    "is_running": false
+  },
+  {
+    "server": "gpt4all",
+    "name": "GPT4All",
+    "host": "localhost",
+    "port": "4891",
+    "endpoints_tested": 3,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:4891/v1/chat/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/models",
+        "result": {
+          "url": "http://localhost:4891/v1/models",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/completions",
+        "result": {
+          "url": "http://localhost:4891/v1/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:4891/v1/models",
+      "error": "Connection refused - Server not running",
+      "success": false
+    },
+    "is_running": false
+  },
+  {
+    "server": "llamacpp",
+    "name": "llama.cpp Server",
+    "host": "localhost",
+    "port": "8080",
+    "endpoints_tested": 4,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/completion",
+        "result": {
+          "url": "http://localhost:8080/completion",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:8080/v1/chat/completions",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/v1/models",
+        "result": {
+          "url": "http://localhost:8080/v1/models",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      },
+      {
+        "endpoint": "/health",
+        "result": {
+          "url": "http://localhost:8080/health",
+          "error": "Connection refused - Server not running",
+          "success": false
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:8080/health",
+      "error": "Connection refused - Server not running",
+      "success": false
+    },
+    "is_running": false
+  },
+  {
+    "server": "fastchat",
+    "name": "FastChat",
+    "host": "localhost",
+    "port": "8000",
+    "endpoints_tested": 3,
+    "working_endpoints": [],
+    "failed_endpoints": [
+      {
+        "endpoint": "/v1/chat/completions",
+        "result": {
+          "url": "http://localhost:8000/v1/chat/completions",
+          "status_code": 404,
+          "success": false,
+          "response_time": 2.041286,
+          "content_type": "application/json",
+          "response_size": 22,
+          "json_response": true,
+          "data_keys": [
+            "detail"
+          ]
+        }
+      },
+      {
+        "endpoint": "/v1/models",
+        "result": {
+          "url": "http://localhost:8000/v1/models",
+          "status_code": 404,
+          "success": false,
+          "response_time": 2.045182,
+          "content_type": "application/json",
+          "response_size": 22,
+          "json_response": true,
+          "data_keys": [
+            "detail"
+          ]
+        }
+      },
+      {
+        "endpoint": "/v1/completions",
+        "result": {
+          "url": "http://localhost:8000/v1/completions",
+          "status_code": 404,
+          "success": false,
+          "response_time": 2.046759,
+          "content_type": "application/json",
+          "response_size": 22,
+          "json_response": true,
+          "data_keys": [
+            "detail"
+          ]
+        }
+      }
+    ],
+    "health_check": {
+      "url": "http://localhost:8000/v1/models",
+      "status_code": 404,
+      "success": false,
+      "response_time": 2.0499,
+      "content_type": "application/json",
+      "response_size": 22,
+      "json_response": true,
+      "data_keys": [
+        "detail"
+      ]
+    },
+    "is_running": false
+  }
+]

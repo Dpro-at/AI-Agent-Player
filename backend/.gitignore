@@ -98,63 +98,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Don't ignore the actual .env file
+!.env
 .env.local
 .env.development
 .env.test
 .env.production
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-
-
-# Log files
-logs/
-*.log
-log/
-*.log.*
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-
-# Backup files
-backups/
-*.bak
-*.backup
-backup_*
-
-# Data files
-data/
-*.csv
-*.json
-*.xml
-uploads/
-files/
-
-# Configuration files with secrets
-config.ini
-config.json
-settings.json
-secrets.json
-.secrets
 
 # IDE files
 .vscode/
@@ -207,7 +157,6 @@ site/
 local/
 dev/
 development/
-More/
 
 # SSL certificates
 *.pem
@@ -215,23 +164,6 @@ More/
 *.key
 *.p12
 *.pfx
-
-# Migration files (if using Alembic)
-alembic/versions/
-migrations/
-
-# Monitoring and metrics
-metrics/
-monitoring/
-
-# Docker
-Dockerfile.local
-docker-compose.override.yml
-.dockerignore
-
-# Git
-.git/
-.gitmodules
 
 # Archive files
 *.tar.gz
@@ -300,4 +232,10 @@ sessions/
 
 # Windows specific
 *.bat.bak
-*.sh.bak 
+*.sh.bak
+more/
+# Allow specific folders and files
+!models/
+!migrations/
+!migrations/versions/
+!data/database.db
