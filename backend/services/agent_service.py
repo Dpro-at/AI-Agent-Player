@@ -141,7 +141,10 @@ class AgentService:
                 
             # Update only provided fields
             for key, value in updates.items():
-                if hasattr(agent, key) and value is not None:
+                # Patch: allow updating api_key_encrypted from api_key
+                if key == "api_key":
+                    setattr(agent, "api_key_encrypted", value)
+                elif hasattr(agent, key) and value is not None:
                     setattr(agent, key, value)
                     
             agent.updated_at = datetime.utcnow()
