@@ -10,19 +10,23 @@ from models.shared import BaseResponse
 
 # Pydantic Models for API
 class ConversationBase(PydanticBaseModel):
-    title: str = Field(..., min_length=1, max_length=300)
+    title: Optional[str] = Field(None, max_length=300)  # Made optional with default
     agent_id: Optional[int] = None
     context_data: Optional[Dict[str, Any]] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
+    extra_data: Optional[Dict[str, Any]] = None
 
-class ConversationCreate(ConversationBase):
-    user_id: Optional[int] = None
+class ConversationCreate(PydanticBaseModel):
+    title: Optional[str] = Field("New Conversation", max_length=300)  # Default title
+    agent_id: Optional[int] = None  # Optional - can be set later
+    context_data: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
+    # user_id removed - taken from authenticated user
 
 class ConversationUpdate(PydanticBaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=300)
     agent_id: Optional[int] = None
     context_data: Optional[Dict[str, Any]] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
+    extra_data: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 class ConversationResponse(ConversationBase):
@@ -40,97 +44,56 @@ class ConversationResponse(ConversationBase):
 
 class MessageBase(PydanticBaseModel):
     content: str = Field(..., min_length=1)
-    sender_type: str = Field(..., pattern="^(user|agent|system)$")
+    sender_type: str = Field("user", pattern="^(user|agent|system)$")  # Default to user
     agent_id: Optional[int] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
+    extra_data: Optional[Dict[str, Any]] = None
 
-class MessageCreate(MessageBase):
-    conversation_id: str
+class MessageCreate(PydanticBaseModel):
+    content: str = Field(..., min_length=1, description="Message content")
+    sender_type: str = Field("user", pattern="^(user|agent|system)$")  # Default to user
+    agent_id: Optional[int] = None
+    extra_data: Optional[Dict[str, Any]] = None
+    # conversation_id removed - taken from URL path
 
 class MessageResponse(MessageBase):
-    id: int
+    id: str
     conversation_id: str
+    user_id: int
     tokens_used: Optional[int] = None
-    processing_time: Optional[int] = None
+    processing_time: Optional[float] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
 
-class ChatAnalytics(PydanticBaseModel):
-    total_conversations: int
-    total_messages: int
-    active_conversations: int
-    average_messages_per_conversation: float
-    most_used_agents: List[Dict[str, Any]]
-    recent_activity: List[Dict[str, Any]]
-
+# List Response Models
 class ConversationListResponse(BaseResponse):
-    data: List[ConversationResponse]
-    total: int
+    data: Dict[str, Any]
 
 class ConversationDetailResponse(BaseResponse):
     data: ConversationResponse
 
 class MessageListResponse(BaseResponse):
-    data: List[MessageResponse]
-    total: int
+    data: Dict[str, Any]
 
-class MessageWithAIResponse(BaseResponse):
-    data: Dict[str, Any]  # Contains user message and AI response
-
+# Analytics Models
 class ChatAnalyticsResponse(BaseResponse):
-    data: ChatAnalytics
+    data: Dict[str, Any]
 
-# WebSocket Models
-class WebSocketMessage(PydanticBaseModel):
-    type: str = Field(..., pattern="^(message|typing|join|leave|error)$")
-    conversation_id: str
-    content: Optional[str] = None
-    user_id: Optional[int] = None
-    agent_id: Optional[int] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
-
-class WebSocketResponse(PydanticBaseModel):
-    type: str
-    conversation_id: str
-    content: Optional[str] = None
-    user_id: Optional[int] = None
-    agent_id: Optional[int] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
-
-# AI Response Models
+# AI Response Request
 class AIResponseRequest(PydanticBaseModel):
-    message: str = Field(..., min_length=1, max_length=4000)
-    conversation_history: Optional[List[Dict[str, str]]] = None
-    agent_id: Optional[int] = None
-    include_context: bool = True
+    message: str = Field(..., min_length=1, description="User message for AI response")
+    context: Optional[Dict[str, Any]] = None
+    temperature: Optional[float] = Field(0.7, ge=0, le=2)
+    max_tokens: Optional[int] = Field(2048, ge=1, le=4096)
 
-class AIResponseResult(PydanticBaseModel):
-    response: str
-    agent_id: int
-    processing_time: float
-    tokens_used: Optional[int] = None
-    cost: Optional[float] = None
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
+# Simple test models for API testing
+class ConversationCreateTest(PydanticBaseModel):
+    """Simplified model for API testing"""
+    title: Optional[str] = "Test Conversation"
+    agent_id: Optional[int] = 1
 
-class AIResponseResponse(BaseResponse):
-    data: AIResponseResult
-
-# Chat Search Models
-class ChatSearchRequest(PydanticBaseModel):
-    query: str = Field(..., min_length=1, max_length=200)
-    conversation_id: Optional[str] = None
-    limit: int = Field(default=20, ge=1, le=100)
-
-class ChatSearchResult(PydanticBaseModel):
-    message_id: int
-    conversation_id: str
-    content: str
-    sender_type: str
-    created_at: datetime
-    extra_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to match model
-
-class ChatSearchResponse(BaseResponse):
-    data: List[ChatSearchResult]
-    total: int 
+class MessageCreateTest(PydanticBaseModel):
+    """Simplified model for API testing"""
+    content: str = "Test message"
+    sender_type: str = "user" 

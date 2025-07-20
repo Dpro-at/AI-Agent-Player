@@ -7,6 +7,7 @@ export { default as UpdatesTab } from "./UpdatesTab";
 export { default as AISyncTab } from "./AISyncTab";
 export { SystemHealthMonitor } from "./SystemHealthMonitor";
 export { default as SimpleSystemHealth } from "./SimpleSystemHealth";
+export { default as DeveloperToolsTab } from "./DeveloperToolsTab";
 export { default as SettingsHeader } from "./SettingsHeader";
 export { default as SettingsSearch } from "./SettingsSearch";
 export { default as SettingsNavigation } from "./SettingsNavigation";

@@ -8,6 +8,7 @@ import {
   UpdatesTab,
   AISyncTab,
   SimpleSystemHealth,
+  DeveloperToolsTab,
 } from './components';
 import { TAB_LIST } from './utils/constants';
 
@@ -88,6 +89,14 @@ const SettingsPage: React.FC = () => {
 
       case 'system-health':
         return <SimpleSystemHealth />;
+
+      case 'developer-tools':
+        return (
+          <DeveloperToolsTab
+            settingsJson={settingsJson}
+            setSettingsJson={setSettingsJson}
+          />
+        );
 
       default:
         return (
