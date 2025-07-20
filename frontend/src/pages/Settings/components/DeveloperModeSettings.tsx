@@ -129,14 +129,21 @@ const DeveloperModeSettings: React.FC = () => {
     { name: 'Test Agent Response', endpoint: '/agents/1/test', method: 'POST', category: 'Agents', subcategory: 'Testing', operation: 'Create', status: '⚠️ Needs Data' },
     { name: 'Agent Statistics', endpoint: '/agents/statistics/overview', method: 'GET', category: 'Agents', subcategory: 'Analytics', operation: 'Read', status: '✅ Working' },
     
-    // ========== CHAT & CONVERSATIONS (FULL CRUD) ==========
+    // ========== CHAT & CONVERSATIONS (FULL CRUD + UUID SUPPORT) ==========
     { name: 'List Conversations', endpoint: '/chat/conversations', method: 'GET', category: 'Chat', subcategory: 'Conversations', operation: 'Read', status: '✅ Working' },
-    { name: 'Create Conversation', endpoint: '/chat/conversations', method: 'POST', category: 'Chat', subcategory: 'Conversations', operation: 'Create', status: '⚠️ Needs Data' },
-    { name: 'Get Conversation', endpoint: '/chat/conversations/1', method: 'GET', category: 'Chat', subcategory: 'Conversations', operation: 'Read', status: '⚠️ Test ID' },
-    { name: 'Update Conversation', endpoint: '/chat/conversations/1', method: 'PUT', category: 'Chat', subcategory: 'Conversations', operation: 'Update', status: '⚠️ Needs Data' },
-    { name: 'Delete Conversation', endpoint: '/chat/conversations/1', method: 'DELETE', category: 'Chat', subcategory: 'Conversations', operation: 'Delete', status: '⚠️ Test ID' },
+    { name: 'Create Conversation', endpoint: '/chat/conversations', method: 'POST', category: 'Chat', subcategory: 'Conversations', operation: 'Create', status: '✅ Working' },
+    { name: 'Get Conversation', endpoint: '/chat/conversations/1', method: 'GET', category: 'Chat', subcategory: 'Conversations', operation: 'Read', status: '✅ Working' },
+    { name: 'Update Conversation', endpoint: '/chat/conversations/1', method: 'PUT', category: 'Chat', subcategory: 'Conversations', operation: 'Update', status: '✅ Working' },
     { name: 'Get Messages', endpoint: '/chat/conversations/1/messages', method: 'GET', category: 'Chat', subcategory: 'Messages', operation: 'Read', status: '✅ Working' },
-    { name: 'Send Message', endpoint: '/chat/conversations/1/messages', method: 'POST', category: 'Chat', subcategory: 'Messages', operation: 'Create', status: '⚠️ Needs Data' },
+    { name: 'Send Message', endpoint: '/chat/conversations/1/messages', method: 'POST', category: 'Chat', subcategory: 'Messages', operation: 'Create', status: '✅ Working' },
+    { name: 'Delete Conversation', endpoint: '/chat/conversations/1', method: 'DELETE', category: 'Chat', subcategory: 'Conversations', operation: 'Delete', status: '✅ Working' },
+    
+    // NEW: UUID-based Chat APIs (ChatGPT-style URLs)
+    { name: 'Get Conversation by UUID', endpoint: '/chat/c/test-uuid-12345', method: 'GET', category: 'Chat UUID', subcategory: 'ChatGPT-style', operation: 'Read', status: '🆕 New' },
+    { name: 'Update Conversation by UUID', endpoint: '/chat/c/test-uuid-12345', method: 'PUT', category: 'Chat UUID', subcategory: 'ChatGPT-style', operation: 'Update', status: '🆕 New' },
+    { name: 'Get Messages by UUID', endpoint: '/chat/c/test-uuid-12345/messages', method: 'GET', category: 'Chat UUID', subcategory: 'ChatGPT-style', operation: 'Read', status: '🆕 New' },
+    { name: 'Send Message by UUID', endpoint: '/chat/c/test-uuid-12345/messages', method: 'POST', category: 'Chat UUID', subcategory: 'ChatGPT-style', operation: 'Create', status: '🆕 New' },
+    { name: 'Delete Conversation by UUID', endpoint: '/chat/c/test-uuid-12345', method: 'DELETE', category: 'Chat UUID', subcategory: 'ChatGPT-style', operation: 'Delete', status: '🆕 New' },
     
     // ========== SYSTEM ADMINISTRATION & MONITORING ==========
     { name: 'Agent Capabilities', endpoint: '/api/agent-capabilities', method: 'GET', category: 'System', subcategory: 'Capabilities', operation: 'Read', status: '✅ Working' },
@@ -168,12 +175,91 @@ const DeveloperModeSettings: React.FC = () => {
       const token = localStorage.getItem('access_token');
       const startTime = Date.now();
       
+      // FIXED: Prepare request body data based on endpoint
+      let body = null;
+      const headers: any = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // FIXED: Add request body for POST/PUT requests
+      if (api.method === 'POST' || api.method === 'PUT') {
+        if (api.endpoint.includes('/chat/conversations') && !api.endpoint.includes('/messages')) {
+          // POST /chat/conversations
+          body = JSON.stringify({
+            title: `Test Conversation ${new Date().toLocaleTimeString()}`,
+            agent_id: 1
+          });
+        } else if (api.endpoint.includes('/chat/conversations') && api.endpoint.includes('/messages')) {
+          // POST /chat/conversations/{id}/messages
+          body = JSON.stringify({
+            content: `Test message sent at ${new Date().toLocaleTimeString()}`,
+            sender_type: "user"
+          });
+        } else if (api.endpoint.includes('/chat/conversations') && api.method === 'PUT') {
+          // PUT /chat/conversations/{id}
+          body = JSON.stringify({
+            title: `Updated Conversation ${new Date().toLocaleTimeString()}`
+          });
+        } else if (api.endpoint.includes('/agents') && api.method === 'POST') {
+          // POST /agents
+          body = JSON.stringify({
+            name: `Test Agent ${new Date().toLocaleTimeString()}`,
+            description: "Test agent for API testing",
+            agent_type: "conversational",
+            model_provider: "openai",
+            model_name: "gpt-3.5-turbo"
+          });
+        } else if (api.endpoint.includes('/tasks') && api.method === 'POST') {
+          // POST /tasks
+          body = JSON.stringify({
+            title: `Test Task ${new Date().toLocaleTimeString()}`,
+            description: "Test task for API testing",
+            priority: "medium"
+          });
+        } else if (api.endpoint.includes('/users/profile') && api.method === 'PUT') {
+          // PUT /users/profile
+          body = JSON.stringify({
+            full_name: "Updated Test User",
+            preferences: { theme: "dark" }
+          });
+        } else if (api.endpoint.includes('/users/settings') && api.method === 'PUT') {
+          // PUT /users/settings
+          body = JSON.stringify({
+            notifications: true,
+            theme: "dark"
+          });
+        } else if (api.endpoint.includes('/training-lab/workspaces') && api.method === 'POST') {
+          // POST /training-lab/workspaces
+          body = JSON.stringify({
+            name: `Test Workspace ${new Date().toLocaleTimeString()}`,
+            agent_id: 1
+          });
+        } else if (api.endpoint.includes('/licensing/validate') && api.method === 'POST') {
+          // POST /licensing/validate
+          body = JSON.stringify({
+            license_key: "TEST-KEY-FOR-API-TESTING"
+          });
+        } else if (api.endpoint.includes('/auth/login') && api.method === 'POST') {
+          // POST /auth/login
+          body = JSON.stringify({
+            email: "me@alarade.at",
+            password: "admin123456"
+          });
+        }
+      }
+
+      // ENHANCED: Debug logging
+      console.log(`🔧 Testing API: ${api.method} ${api.endpoint}`);
+      if (body) {
+        console.log(`🔧 Request body:`, JSON.parse(body));
+      }
+      console.log(`🔧 Request headers:`, headers);
+      
       const response = await fetch(`${config.api.baseURL}${api.endpoint}`, {
         method: api.method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers,
+        body
       });
       
       const endTime = Date.now();
@@ -185,6 +271,24 @@ const DeveloperModeSettings: React.FC = () => {
       } catch {
         data = await response.text();
       }
+
+      // ENHANCED: Show detailed 422 validation errors
+      if (response.status === 422) {
+        console.error(`❌ VALIDATION ERROR (422) for ${api.method} ${api.endpoint}:`);
+        console.error(`📄 Request body was:`, body ? JSON.parse(body) : 'No body');
+        console.error(`📋 Error details:`, data);
+        
+        if (data.detail && Array.isArray(data.detail)) {
+          console.error(`🔍 Validation issues:`);
+          data.detail.forEach((error: any, index: number) => {
+            console.error(`   ${index + 1}. Field: ${error.loc?.join('.')} - ${error.msg}`);
+            console.error(`      Type: ${error.type}, Input: ${error.input}`);
+          });
+        }
+      }
+      
+      console.log(`📥 Response status: ${response.status}`);
+      console.log(`📥 Response data:`, data);
       
       const result = {
         status: response.status,

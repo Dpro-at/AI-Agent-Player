@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Dict, Any, List, Optional
 from models.agent import (
     AgentCreateRequest, AgentUpdateRequest, AgentTestRequest,
-    AgentListResponse, AgentDetailResponse, AgentTestResponse, 
-    AgentStatsResponse, ChildAgentCreateRequest
+    AgentResponse, AgentTestResponse, AgentStatistics,
+    ChildAgentRequest, ParentAgentInfo, ChildAgentResponse
 )
 from models.shared import SuccessResponse
 from core.dependencies import get_current_user, get_optional_user
@@ -134,7 +134,7 @@ async def create_agent(
 
 @router.post("/child", response_model=SuccessResponse)
 async def create_child_agent(
-    request: ChildAgentCreateRequest,
+    request: ChildAgentRequest,
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

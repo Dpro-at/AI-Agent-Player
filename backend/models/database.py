@@ -160,6 +160,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), unique=True, index=True, nullable=False)  # NEW: Unique conversation link
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
     title = Column(String, nullable=True)
@@ -175,12 +176,20 @@ class Message(Base):
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
     content = Column(Text, nullable=False)
-    sender = Column(String, nullable=False)  # 'user' or 'agent'
-    message_type = Column(String, default="text")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    message_role = Column(String, nullable=False)  # Changed from 'sender' to 'message_role'
+    message_type = Column(String, nullable=True)  # Remove default here
+    created_at = Column(DateTime, nullable=True)  # Remove default here
     
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
+    
+    def __init__(self, **kwargs):
+        # Set defaults in constructor instead of column definition
+        if 'message_type' not in kwargs:
+            kwargs['message_type'] = 'text'
+        if 'created_at' not in kwargs:
+            kwargs['created_at'] = datetime.utcnow()
+        super().__init__(**kwargs)
 
 class Task(Base):
     __tablename__ = "tasks"

@@ -11,10 +11,12 @@ from models.database import Conversation, Message
 from fastapi import HTTPException
 from datetime import datetime
 import logging
+import uuid  # NEW: For generating unique conversation links
 
 class ChatService:
-    """Chat management service - Fixed version"""
-    
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
     async def get_user_conversations(
         self, db: AsyncSession, user_id: int, limit: int = 20, offset: int = 0
     ) -> List[Dict[str, Any]]:
@@ -48,64 +50,153 @@ class ChatService:
     
     async def create_conversation(
         self, db: AsyncSession, title: str, user_id: int, agent_id: Optional[int] = None
-    ) -> int:
-        """Create new conversation"""
+    ) -> Dict[str, Any]:
+        """Create new conversation with unique UUID link"""
         try:
-            conversation = Conversation(
-                title=title or "New Conversation",
+            # NEW: Generate unique UUID for conversation link
+            conversation_uuid = str(uuid.uuid4())
+            
+            # Create new conversation with UUID
+            new_conversation = Conversation(
+                uuid=conversation_uuid,  # NEW: Unique conversation identifier
+                title=title,
                 user_id=user_id,
                 agent_id=agent_id
             )
-            db.add(conversation)
+            
+            db.add(new_conversation)
             await db.commit()
-            await db.refresh(conversation)
-            return conversation.id
+            await db.refresh(new_conversation)
+            
+            self.logger.info(f"Created conversation with UUID: {conversation_uuid}")
+            
+            return {
+                "conversation_id": new_conversation.id,
+                "conversation_uuid": conversation_uuid,  # NEW: Return UUID for frontend
+                "conversation_link": f"/chat/c/{conversation_uuid}",  # NEW: Unique link like ChatGPT
+                "title": title,
+                "user_id": user_id,
+                "agent_id": agent_id,
+                "created_at": new_conversation.created_at.isoformat()
+            }
+            
         except Exception as e:
             await db.rollback()
-            logging.error(f"Error creating conversation: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    async def get_conversation_by_id(
-        self, db: AsyncSession, conversation_id: str
+            self.logger.error(f"Error creating conversation: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to create conversation: {str(e)}")
+
+    async def get_conversation_by_uuid(
+        self, db: AsyncSession, conversation_uuid: str, user_id: int
     ) -> Optional[Dict[str, Any]]:
-        """Get specific conversation by ID"""
+        """Get conversation by UUID with ownership validation"""
         try:
-            # Handle both string and int IDs
-            conv_id = int(conversation_id) if conversation_id.isdigit() else conversation_id
+            # Select specific columns to avoid any column issues
+            query = (
+                select(Conversation)
+                .where(
+                    and_(
+                        Conversation.uuid == conversation_uuid,
+                        Conversation.user_id == user_id
+                    )
+                )
+            )
             
-            query = select(Conversation).where(Conversation.id == conv_id)
-            result = await db.execute(query)
-            conversation = result.scalar_one_or_none()
-            return self._conversation_to_dict(conversation) if conversation else None
-        except Exception as e:
-            logging.error(f"Error getting conversation by ID: {e}")
-            return None
-    
-    async def update_conversation(
-        self, db: AsyncSession, conversation_id: str, updates: Dict[str, Any]
-    ) -> bool:
-        """Update existing conversation"""
-        try:
-            conv_id = int(conversation_id) if conversation_id.isdigit() else conversation_id
-            
-            query = select(Conversation).where(Conversation.id == conv_id)
             result = await db.execute(query)
             conversation = result.scalar_one_or_none()
             
             if not conversation:
-                return False
+                return None
                 
-            for key, value in updates.items():
-                if hasattr(conversation, key) and value is not None:
-                    setattr(conversation, key, value)
-                    
-            conversation.updated_at = datetime.utcnow()
+            return {
+                "id": conversation.id,
+                "uuid": conversation.uuid,
+                "title": conversation.title,
+                "agent_id": conversation.agent_id,
+                "user_id": conversation.user_id,
+                "created_at": conversation.created_at,
+                "updated_at": conversation.updated_at
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting conversation by UUID: {e}")
+            return None
+
+    async def get_conversation_by_id(
+        self, db: AsyncSession, conversation_id: int, user_id: int = None
+    ) -> Optional[Dict[str, Any]]:
+        """Get conversation by ID with optional ownership validation"""
+        try:
+            # Build query conditions
+            conditions = [Conversation.id == conversation_id]
+            if user_id is not None:
+                conditions.append(Conversation.user_id == user_id)
+            
+            query = select(Conversation).where(and_(*conditions))
+            result = await db.execute(query)
+            conversation = result.scalar_one_or_none()
+            
+            if not conversation:
+                return None
+                
+            return {
+                "id": conversation.id,
+                "uuid": conversation.uuid,
+                "title": conversation.title,
+                "agent_id": conversation.agent_id,
+                "user_id": conversation.user_id,
+                "created_at": conversation.created_at,
+                "updated_at": conversation.updated_at
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting conversation by ID: {e}")
+            return None
+
+    async def update_conversation_by_uuid(
+        self, db: AsyncSession, conversation_uuid: str, update_data: Dict[str, Any]
+    ) -> bool:
+        """Update conversation by UUID"""
+        try:
+            # Update the conversation
+            query = (
+                update(Conversation)
+                .where(Conversation.uuid == conversation_uuid)
+                .values(**update_data, updated_at=datetime.utcnow())
+            )
+            
+            result = await db.execute(query)
             await db.commit()
-            return True
+            
+            return result.rowcount > 0
             
         except Exception as e:
             await db.rollback()
-            logging.error(f"Error updating conversation: {e}")
+            self.logger.error(f"Error updating conversation by UUID: {e}")
+            return False
+
+    async def update_conversation(
+        self, db: AsyncSession, conversation_id: int, update_data: Dict[str, Any]
+    ) -> bool:
+        """Update conversation by ID"""
+        try:
+            # Add updated_at timestamp
+            update_data["updated_at"] = datetime.utcnow()
+            
+            # Update the conversation
+            query = (
+                update(Conversation)
+                .where(Conversation.id == conversation_id)
+                .values(**update_data)
+            )
+            
+            result = await db.execute(query)
+            await db.commit()
+            
+            return result.rowcount > 0
+            
+        except Exception as e:
+            await db.rollback()
+            self.logger.error(f"Error updating conversation: {e}")
             return False
     
     async def delete_conversation(self, db: AsyncSession, conversation_id: str) -> bool:
@@ -165,35 +256,56 @@ class ChatService:
         self, db: AsyncSession, conversation_id: str, content: str,
         sender_type: str = "user", agent_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Add message to conversation"""
+        """Add message to conversation - fixed error handling"""
         try:
-            conv_id = int(conversation_id) if conversation_id.isdigit() else conversation_id
+            # Convert conversation_id to int with proper error handling
+            try:
+                conv_id = int(conversation_id)
+            except (ValueError, TypeError) as e:
+                self.logger.error(f"Invalid conversation_id: {conversation_id}")
+                raise Exception(f"Invalid conversation ID: {conversation_id}")
             
-            # Create message using correct field name
-            message = Message(
-                conversation_id=conv_id,
-                content=content,
-                sender=sender_type  # Use 'sender' field from database model
-            )
-            db.add(message)
-            
-            # Update conversation timestamp
+            # Verify conversation exists
             query = select(Conversation).where(Conversation.id == conv_id)
             result = await db.execute(query)
             conversation = result.scalar_one_or_none()
             
-            if conversation:
-                conversation.updated_at = datetime.utcnow()
+            if not conversation:
+                self.logger.error(f"Conversation {conv_id} not found")
+                raise Exception(f"Conversation {conv_id} not found")
             
+            # Create message - let __init__ handle defaults
+            message = Message(
+                conversation_id=conv_id,
+                content=content,
+                message_role=sender_type  # Changed from 'sender' to 'message_role'
+            )
+            
+            # Add and commit
+            db.add(message)
+            await db.flush()
+            
+            # Update conversation timestamp
+            conversation.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(message)
             
-            return {"message_id": message.id, "status": "success"}
+            self.logger.info(f"Message {message.id} added successfully to conversation {conv_id}")
+            
+            return {
+                "message_id": message.id,
+                "content": content,
+                "sender": sender_type,  # Keep as 'sender' for API compatibility
+                "conversation_id": conv_id,
+                "created_at": message.created_at,
+                "message_type": message.message_type
+            }
             
         except Exception as e:
             await db.rollback()
-            logging.error(f"Error adding message: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            error_msg = f"Failed to add message: {str(e)}"
+            self.logger.error(f"Error in add_message_to_conversation: {error_msg}")
+            self.logger.error(f"  Input: conversation_id={conversation_id}, content='{content[:50]}...', sender={sender_type}")
+            raise Exception(error_msg)
     
     async def generate_ai_response(
         self, db: AsyncSession, conversation_id: str, message: str,
@@ -369,7 +481,7 @@ class ChatService:
             "id": message.id,
             "conversation_id": message.conversation_id,
             "content": message.content,
-            "sender": message.sender,
+                            "sender": message.message_role,  # Changed from message.sender to message.message_role
             "message_type": message.message_type,
             "created_at": message.created_at.isoformat() if message.created_at else None
         } 

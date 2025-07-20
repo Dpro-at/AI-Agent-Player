@@ -3,8 +3,8 @@
  * Features: Conversations sidebar, model selection, chat interface, settings
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom'; // NEW: Added routing hooks
 import { ConversationsSidebar } from './components/ConversationsSidebar';
 import { ChatInterface } from './components/ChatInterface';
 import { ModelSelector } from './components/ModelSelector';
@@ -50,6 +50,8 @@ interface Conversation {
   message_count?: number;
   tags?: string[];
   folder?: string;
+  conversation_uuid?: string; // NEW: Add UUID to conversation
+  uuid?: string; // NEW: Add UUID to conversation
 }
 
 interface Message {
@@ -125,9 +127,10 @@ interface ChatSettings {
   enableMCP: boolean;
 }
 
-const ChatPage: React.FC = () => {
+export const ChatPage: React.FC = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // NEW: For current location
   const { user } = useAuth();
   
   // Core State

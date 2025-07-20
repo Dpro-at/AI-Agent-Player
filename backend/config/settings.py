@@ -28,10 +28,10 @@ class Settings:
     DATABASE_URL = "sqlite:///data/database.db"
     DATABASE_ECHO = True
     
-    # Security
-    SECRET_KEY = "dpro-ai-agent-secret-key-2024"
-    ACCESS_TOKEN_EXPIRE_MINUTES = 30
-    REFRESH_TOKEN_EXPIRE_DAYS = 7
+    # Security - FIXED: Improved JWT settings
+    SECRET_KEY = "dpro-ai-agent-super-secure-jwt-secret-key-2024-updated-for-production-use"
+    ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours (was 30 minutes)
+    REFRESH_TOKEN_EXPIRE_DAYS = 30     # 30 days (was 7 days)
     ALGORITHM = "HS256"
     
     # OpenAI Configuration

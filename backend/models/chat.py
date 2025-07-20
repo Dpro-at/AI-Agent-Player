@@ -44,13 +44,13 @@ class ConversationResponse(ConversationBase):
 
 class MessageBase(PydanticBaseModel):
     content: str = Field(..., min_length=1)
-    sender_type: str = Field("user", pattern="^(user|agent|system)$")  # Default to user
+    sender_type: str = Field("user", description="Sender type: user, agent, or system")  # Removed pattern
     agent_id: Optional[int] = None
     extra_data: Optional[Dict[str, Any]] = None
 
 class MessageCreate(PydanticBaseModel):
     content: str = Field(..., min_length=1, description="Message content")
-    sender_type: str = Field("user", pattern="^(user|agent|system)$")  # Default to user
+    sender_type: str = Field("user", description="Sender type: user, agent, or system")  # Removed pattern
     agent_id: Optional[int] = None
     extra_data: Optional[Dict[str, Any]] = None
     # conversation_id removed - taken from URL path

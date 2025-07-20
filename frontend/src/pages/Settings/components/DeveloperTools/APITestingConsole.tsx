@@ -64,31 +64,35 @@ export const APITestingConsole: React.FC = () => {
     { id: '9', method: 'PUT', path: '/agents/{id}', category: 'agents', description: 'Update agent' },
     { id: '10', method: 'DELETE', path: '/agents/{id}', category: 'agents', description: 'Delete agent' },
     
-    // Chat APIs
-    { id: '11', method: 'GET', path: '/chat/conversations', category: 'chat', description: 'Get conversations' },
-    { id: '12', method: 'POST', path: '/chat/conversations', category: 'chat', description: 'Create conversation' },
-    { id: '13', method: 'POST', path: '/chat/conversations/{id}/messages', category: 'chat', description: 'Send message' },
+    // Chat APIs - FIXED: Complete Chat API endpoints (reordered for better testing)
+    { id: '11', method: 'GET', path: '/chat/conversations', category: 'chat', description: 'List Conversations' },
+    { id: '12', method: 'POST', path: '/chat/conversations', category: 'chat', description: 'Create Conversation' },
+    { id: '13', method: 'GET', path: '/chat/conversations/1', category: 'chat', description: 'Get Conversation' },
+    { id: '14', method: 'PUT', path: '/chat/conversations/1', category: 'chat', description: 'Update Conversation' },
+    { id: '15', method: 'GET', path: '/chat/conversations/1/messages', category: 'chat', description: 'Get Messages' },
+    { id: '16', method: 'POST', path: '/chat/conversations/1/messages', category: 'chat', description: 'Send Message' },
+    { id: '17', method: 'DELETE', path: '/chat/conversations/1', category: 'chat', description: 'Delete Conversation' },
     
     // Tasks APIs
-    { id: '14', method: 'GET', path: '/task/tasks', category: 'tasks', description: 'List tasks' },
-    { id: '15', method: 'POST', path: '/task/tasks', category: 'tasks', description: 'Create task' },
-    { id: '16', method: 'PUT', path: '/task/tasks/{id}', category: 'tasks', description: 'Update task' },
+    { id: '18', method: 'GET', path: '/task/tasks', category: 'tasks', description: 'List tasks' },
+    { id: '19', method: 'POST', path: '/task/tasks', category: 'tasks', description: 'Create task' },
+    { id: '20', method: 'PUT', path: '/task/tasks/{id}', category: 'tasks', description: 'Update task' },
     
     // Licensing APIs
-    { id: '17', method: 'GET', path: '/license/licensing/status', category: 'licensing', description: 'Get license status' },
-    { id: '18', method: 'POST', path: '/license/licensing/validate', category: 'licensing', description: 'Validate license' },
+    { id: '21', method: 'GET', path: '/license/licensing/status', category: 'licensing', description: 'Get license status' },
+    { id: '22', method: 'POST', path: '/license/licensing/validate', category: 'licensing', description: 'Validate license' },
     
     // Training APIs
-    { id: '19', method: 'GET', path: '/training/training-lab/workspaces', category: 'training', description: 'List workspaces' },
-    { id: '20', method: 'POST', path: '/training/training-lab/workspaces', category: 'training', description: 'Create workspace' },
+    { id: '23', method: 'GET', path: '/training/training-lab/workspaces', category: 'training', description: 'List workspaces' },
+    { id: '24', method: 'POST', path: '/training/training-lab/workspaces', category: 'training', description: 'Create workspace' },
     
     // Marketplace APIs
-    { id: '21', method: 'GET', path: '/market/marketplace/items', category: 'marketplace', description: 'Get marketplace items' },
-    { id: '22', method: 'GET', path: '/market/marketplace/categories', category: 'marketplace', description: 'Get categories' },
+    { id: '25', method: 'GET', path: '/market/marketplace/items', category: 'marketplace', description: 'Get marketplace items' },
+    { id: '26', method: 'GET', path: '/market/marketplace/categories', category: 'marketplace', description: 'Get categories' },
     
     // System APIs
-    { id: '23', method: 'GET', path: '/api/system/health', category: 'system', description: 'System health check' },
-    { id: '24', method: 'GET', path: '/api/system/analytics', category: 'system', description: 'System analytics' }
+    { id: '27', method: 'GET', path: '/api/system/health', category: 'system', description: 'System health check' },
+    { id: '28', method: 'GET', path: '/api/system/analytics', category: 'system', description: 'System analytics' }
   ]);
 
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -132,35 +136,162 @@ export const APITestingConsole: React.FC = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Prepare test data based on method and endpoint
+      // FIXED: Dynamic conversation ID management
+      let requestUrl = endpoint.path;
+      let conversationId = 1; // Default conversation ID
+      
+      // For endpoints that need an existing conversation, get or create one
+      if (endpoint.path.includes('conversations/1') || endpoint.path.includes('messages')) {
+        // Try to get existing conversations first
+        if (endpoint.method !== 'POST' || endpoint.path.includes('messages')) {
+          try {
+            const conversationsResponse = await fetch('http://localhost:8000/chat/conversations', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (conversationsResponse.ok) {
+              const conversationsData = await conversationsResponse.json();
+              const conversations = conversationsData.data?.conversations || [];
+              
+              if (conversations.length > 0) {
+                conversationId = conversations[0].id;
+                console.log(`🔧 Using existing conversation ID: ${conversationId}`);
+              } else {
+                // Create a new conversation if none exist
+                console.log(`🔧 No conversations found, creating new one...`);
+                const createResponse = await fetch('http://localhost:8000/chat/conversations', {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({ 
+                    title: `Test Conversation for Messages ${new Date().toLocaleTimeString()}`, 
+                    agent_id: 1 
+                  })
+                });
+                
+                if (createResponse.ok) {
+                  const createData = await createResponse.json();
+                  conversationId = createData.data?.conversation_id || 1;
+                  console.log(`🔧 Created new conversation ID: ${conversationId}`);
+                }
+              }
+            }
+          } catch (error) {
+            console.log(`🔧 Error getting conversations, using default ID: ${conversationId}`);
+          }
+        }
+      }
+      
+      // Replace {id} with actual conversation ID
+      if (requestUrl.includes('{id}')) {
+        if (requestUrl.includes('/agents/')) {
+          requestUrl = requestUrl.replace('{id}', '1'); // Use agent ID 1 for testing
+        } else if (requestUrl.includes('/chat/')) {
+          requestUrl = requestUrl.replace('{id}', conversationId.toString()); // Use actual conversation ID
+        } else if (requestUrl.includes('/tasks/')) {
+          requestUrl = requestUrl.replace('{id}', '1'); // Use task ID 1 for testing
+        }
+      }
+      
+      // For hardcoded URLs, also replace with actual conversation ID
+      if (requestUrl === '/chat/conversations/1' || requestUrl === '/chat/conversations/1/messages') {
+        requestUrl = requestUrl.replace('/1', `/${conversationId}`);
+      }
+
+      // Prepare test data based on method and endpoint - FIXED: Complete Chat API data
       let body = null;
       if (endpoint.method === 'POST' && endpoint.path.includes('login')) {
         body = JSON.stringify({ email: 'test@example.com', password: 'password' });
       } else if (endpoint.method === 'POST' && endpoint.path.includes('agents')) {
         body = JSON.stringify({ name: 'Test Agent', description: 'Test agent description' });
-      } else if (endpoint.method === 'POST' && endpoint.path.includes('conversations')) {
-        body = JSON.stringify({ title: 'Test Conversation', agent_id: 1 });
+      } else if (endpoint.method === 'POST' && endpoint.path.includes('conversations') && !endpoint.path.includes('messages')) {
+        // POST /chat/conversations
+        body = JSON.stringify({ 
+          title: `Test Conversation ${new Date().toLocaleTimeString()}`, 
+          agent_id: 1 
+        });
+      } else if (endpoint.method === 'POST' && endpoint.path.includes('messages')) {
+        // POST /chat/conversations/{id}/messages  
+        body = JSON.stringify({ 
+          content: `Test message sent at ${new Date().toLocaleTimeString()}`,
+          sender_type: "user"
+        });
+      } else if (endpoint.method === 'PUT' && endpoint.path.includes('conversations')) {
+        // PUT /chat/conversations/{id}
+        body = JSON.stringify({ 
+          title: `Updated Conversation ${new Date().toLocaleTimeString()}`
+        });
       } else if (endpoint.method === 'POST' && endpoint.path.includes('tasks')) {
         body = JSON.stringify({ title: 'Test Task', description: 'Test task description' });
+      } else if (endpoint.method === 'PUT' && endpoint.path.includes('profile')) {
+        // PUT /users/profile
+        body = JSON.stringify({ 
+          full_name: 'Updated Test User',
+          preferences: { theme: 'dark' }
+        });
+      } else if (endpoint.method === 'POST' && endpoint.path.includes('workspaces')) {
+        // POST /training/training-lab/workspaces
+        body = JSON.stringify({ 
+          name: 'Test Training Workspace',
+          agent_id: 1
+        });
       }
 
-      const response = await fetch(`http://localhost:8000${endpoint.path}`, {
+      // FIXED: Debug logging for testing
+      console.log(`🔧 Testing API: ${endpoint.method} ${requestUrl}`);
+      console.log(`🔧 Body data:`, body);
+      console.log(`🔧 Headers:`, headers);
+
+      console.log(`🔧 Request URL: ${requestUrl}`);
+      console.log(`🔧 Request method: ${endpoint.method}`);
+      console.log(`🔧 Request headers:`, headers);
+      if (body) {
+        console.log(`🔧 Request body:`, JSON.parse(body));
+      }
+
+      const response = await fetch(`http://localhost:8000${requestUrl}`, {
         method: endpoint.method,
         headers,
         body
       });
 
-      const responseTime = Date.now() - startTime;
-      const data = await response.json();
+      // ENHANCED: Detailed response logging for debugging
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        responseData = { error: 'Failed to parse JSON response', text: await response.text() };
+      }
+      
+      console.log(`📥 Response status: ${response.status}`);
+      console.log(`📥 Response data:`, responseData);
+      
+      // ENHANCED: Show detailed 422 validation errors
+      if (response.status === 422) {
+        console.error(`❌ VALIDATION ERROR (422) for ${endpoint.method} ${requestUrl}:`);
+        console.error(`📄 Request body was:`, body ? JSON.parse(body) : 'No body');
+        console.error(`📋 Error details:`, responseData);
+        
+        if (responseData.detail && Array.isArray(responseData.detail)) {
+          console.error(`🔍 Validation issues:`);
+          responseData.detail.forEach((error: any, index: number) => {
+            console.error(`   ${index + 1}. Field: ${error.loc?.join('.')} - ${error.msg}`);
+            console.error(`      Type: ${error.type}, Input: ${error.input}`);
+          });
+        }
+      }
 
+      const responseTime = Date.now() - startTime;
+      const isSuccess = response.ok;
+      
+      // Create proper APITestResult object
       const result: APITestResult = {
         endpoint: endpoint.path,
         method: endpoint.method,
         status: response.status,
         responseTime,
-        success: response.ok,
-        data: response.ok ? data : undefined,
-        error: !response.ok ? data.message || 'Request failed' : undefined,
+        success: isSuccess,
+        data: isSuccess ? responseData : undefined,
+        error: !isSuccess ? responseData?.message || responseData?.detail || 'Request failed' : undefined,
         timestamp: new Date().toLocaleString()
       };
 
