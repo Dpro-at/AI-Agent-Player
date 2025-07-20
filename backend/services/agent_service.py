@@ -101,6 +101,9 @@ class AgentService:
                     api_key = parent.get("api_key_encrypted")
             
             # Create new agent with string values (not enum)
+            logging.info(f"🔨 CREATING AGENT - Provider: '{model_provider}', Model: '{model_name}'")
+            logging.info(f"🔨 API Endpoint: '{api_endpoint}'")
+            
             new_agent = Agent(
                 name=name,
                 description=description,
@@ -187,16 +190,20 @@ class AgentService:
             
             # ✅ IMPROVED: Check model provider first, then validate API key only if needed
             model_provider = agent.get("model_provider", "").lower()
+            logging.info(f"🔍 TESTING AGENT - ID: {agent.get('id')}, Provider: '{model_provider}', Original: '{agent.get('model_provider')}'")
+            logging.info(f"🔍 Agent Details - Name: '{agent.get('name')}', Model: '{agent.get('model_name')}', Endpoint: '{agent.get('api_endpoint')}'")
             
             # Local providers that don't need API keys
             local_providers = ["ollama", "lmstudio", "textgen", "localai", "llamafile", "jan", "vllm", "llamacppserver"]
             
-            # Check if this is a local provider that doesn't need API key
-            if model_provider in local_providers:
-                # ✅ Skip API key validation for local providers (they don't need API keys!)
-                logging.info(f"🟢 Local provider '{model_provider}' detected - no API key required")
-                pass
-            elif model_provider == "openai":
+            logging.warning(f"🔍 DEBUG: provider='{model_provider}', in_local_list={model_provider in local_providers}")
+            logging.warning(f"🔍 DEBUG: All agent keys: {list(agent.keys())}")
+            logging.warning(f"🔍 DEBUG: model_provider exact: '{agent.get('model_provider')}'")
+            
+            # Handle specific providers with proper logic flow
+            logging.warning(f"🔀 ENTERING PROVIDER LOGIC - provider: '{model_provider}'")
+            if model_provider == "openai":
+                logging.warning(f"🟦 ENTERING OPENAI SECTION")
                 # Only validate API key for OpenAI
                 api_key = agent.get("api_key_encrypted")
                 if not api_key or not self._validate_openai_key(api_key):
@@ -290,14 +297,25 @@ class AgentService:
             
             # For Ollama local models
             elif agent.get("model_provider") == "ollama":
+                logging.warning(f"🦙🔥 OLLAMA SECTION ENTERED! - Agent ID: {agent.get('id')}, Name: {agent.get('name')}")
+                logging.warning(f"🦙🔥 Provider: '{agent.get('model_provider')}', Model: '{agent.get('model_name')}'")
+                logging.warning(f"🦙🔥 Endpoint: '{agent.get('api_endpoint')}'")
                 try:
                     import requests
                     import json
                     
-                    # Get Ollama endpoint (default: http://localhost:11434)
-                    ollama_endpoint = agent.get("api_endpoint", "http://localhost:11434")
-                    if not ollama_endpoint.endswith('/'):
-                        ollama_endpoint += '/'
+                    # Get Ollama endpoint and handle full URLs vs base URLs
+                    api_endpoint = agent.get("api_endpoint", "http://localhost:11434")
+                    
+                    # Check if endpoint already contains the full path
+                    if "/v1/chat/completions" in api_endpoint:
+                        # Already contains full path, use as-is
+                        ollama_endpoint = api_endpoint.rstrip('/')
+                        full_url = ollama_endpoint
+                    else:
+                        # Base URL only, add the path
+                        ollama_endpoint = api_endpoint.rstrip('/')
+                        full_url = f"{ollama_endpoint}/v1/chat/completions"
                     
                     # Prepare the messages for Ollama
                     messages = []
@@ -310,28 +328,45 @@ class AgentService:
                     # Add user message
                     messages.append({"role": "user", "content": test_message})
                     
-                    # Ollama API request
+                    # Ollama API request using OpenAI-compatible format
                     payload = {
                         "model": agent.get("model_name", "llama2"),
                         "messages": messages,
                         "stream": False,
-                        "options": {
-                            "temperature": agent.get("temperature", 0.7),
-                            "num_predict": min(agent.get("max_tokens", 1000), 4000),
-                            "top_p": agent.get("top_p", 1.0),
-                        }
+                        # OpenAI format parameters (not nested in options)
+                        "temperature": agent.get("temperature", 0.7),
+                        "max_tokens": min(agent.get("max_tokens", 1000), 4000),
+                        "top_p": agent.get("top_p", 1.0),
                     }
                     
-                    # Make request to Ollama
+                    # Make request to Ollama using OpenAI-compatible endpoint
+                    logging.warning(f"🔗 OLLAMA REQUEST URL: {full_url}")
+                    logging.warning(f"📤 OLLAMA PAYLOAD: {payload}")
+                    
                     response = requests.post(
-                        f"{ollama_endpoint}api/chat",
+                        full_url,
                         json=payload,
                         timeout=30
                     )
                     
+                    logging.warning(f"📊 OLLAMA RESPONSE STATUS: {response.status_code}")
+                    if response.status_code != 200:
+                        logging.error(f"❌ OLLAMA ERROR RESPONSE: {response.text}")
+                    else:
+                        logging.warning(f"✅ OLLAMA SUCCESS RESPONSE LENGTH: {len(response.text)} chars")
+                    
                     if response.status_code == 200:
                         data = response.json()
-                        ai_response = data.get("message", {}).get("content", "No response from Ollama")
+                        logging.info(f"✅ OLLAMA RESPONSE SUCCESS - Status: 200")
+                        logging.info(f"✅ Raw response keys: {list(data.keys())}")
+                        # Handle OpenAI-compatible response format
+                        if "choices" in data and len(data["choices"]) > 0:
+                            ai_response = data["choices"][0]["message"]["content"]
+                            logging.info(f"✅ Using OpenAI format response: {ai_response[:100]}...")
+                        else:
+                            # Fallback to old format
+                            ai_response = data.get("message", {}).get("content", "No response from Ollama")
+                            logging.warning(f"⚠️ Using fallback format response: {ai_response[:100]}...")
                         
                         response_time = round(time.time() - start_time, 3)
                         
@@ -346,14 +381,16 @@ class AgentService:
                                 "agent_type": agent.get("agent_type"),
                                 "temperature": agent.get("temperature"),
                                 "max_tokens": agent.get("max_tokens"),
-                                "endpoint": ollama_endpoint
+                                "endpoint": full_url
                             },
                             "test_results": {
                                 "user_message": test_message,
                                 "agent_response": ai_response,
                                 "response_time": f"{response_time}s",
                                 "timestamp": datetime.now().isoformat(),
-                                "tokens_used": len(test_message.split()) + len(ai_response.split()),
+                                "tokens_used": data.get("usage", {}).get("total_tokens", len(test_message.split()) + len(ai_response.split())),
+                                "prompt_tokens": data.get("usage", {}).get("prompt_tokens", len(test_message.split())),
+                                "completion_tokens": data.get("usage", {}).get("completion_tokens", len(ai_response.split())),
                                 "cost_estimate": 0.0,  # Ollama is free
                                 "success": True,
                                 "model_info": data.get("model", ""),
@@ -363,6 +400,7 @@ class AgentService:
                                 "response_time_ms": int(response_time * 1000),
                                 "status_code": 200,
                                 "model_temperature": agent.get("temperature"),
+                                "total_tokens": data.get("usage", {}).get("total_tokens", len(test_message.split()) + len(ai_response.split())),
                                 "estimated_tokens": len(test_message.split()) + len(ai_response.split()),
                                 "local_model": True
                             }
@@ -375,7 +413,9 @@ class AgentService:
                         }
                         
                 except Exception as ollama_error:
-                    logging.error(f"Ollama API error: {ollama_error}")
+                    logging.error(f"❌ OLLAMA API ERROR: {ollama_error}")
+                    logging.error(f"❌ Endpoint: {full_url}")
+                    logging.error(f"❌ Model: {agent.get('model_name')}")
                     return {
                         "status": "error",
                         "message": f"Ollama connection error: {str(ollama_error)}",
@@ -384,6 +424,10 @@ class AgentService:
                     }
             
             # For non-OpenAI providers, use mock responses
+            logging.error(f"🚨 CRITICAL: FALLING BACK TO MOCK RESPONSE for provider: '{model_provider}'")
+            logging.error(f"🚨 This means Ollama section was NOT reached - check why!")
+            logging.error(f"🚨 agent.get('model_provider') = '{agent.get('model_provider')}'")
+            logging.error(f"🚨 model_provider variable = '{model_provider}'")
             response_time = round(time.time() - start_time, 3)
             
             # Generate appropriate mock response

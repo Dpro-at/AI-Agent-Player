@@ -500,11 +500,21 @@ const AgentPage: React.FC = () => {
       let agentRequest: any;
 
       if (builderType === 'main') {
+        // ✅ Smart model fallback based on provider
+        const provider = agentData.llmConfig?.provider || 'openai';
+        let defaultModel = 'gpt-4'; // Default for OpenAI
+        
+        if (provider === 'ollama') {
+          defaultModel = 'qwen2.5vl:7b'; // Default for Ollama
+        } else if (provider === 'google') {
+          defaultModel = 'gemini-1.5-flash'; // Default for Google
+        }
+        
         agentRequest = {
           name: agentData.name,
           description: agentData.description || '',
-          model_provider: agentData.llmConfig?.provider || 'openai',
-          model_name: agentData.llmConfig?.model || 'gpt-4',
+          model_provider: provider,
+          model_name: agentData.llmConfig?.model || defaultModel,
           api_key: agentData.llmConfig?.apiKey || '',
           api_endpoint: apiEndpoint, // ✅ NEW: Include calculated endpoint
           system_prompt: '',
@@ -525,13 +535,23 @@ const AgentPage: React.FC = () => {
         };
       } else {
         // Child Agent - match backend ChildAgentCreateRequest schema
+        // ✅ Smart model fallback based on provider (same logic for child agents)
+        const provider = agentData.llmConfig?.provider || 'openai';
+        let defaultModel = 'gpt-4'; // Default for OpenAI
+        
+        if (provider === 'ollama') {
+          defaultModel = 'qwen2.5vl:7b'; // Default for Ollama
+        } else if (provider === 'google') {
+          defaultModel = 'gemini-1.5-flash'; // Default for Google
+        }
+        
         agentRequest = {
           name: agentData.name,
           description: agentData.description || '',
           agent_type: 'child',  // Required by backend
           parent_agent_id: agentData.parent_agent_id || 1, // Default to first main agent if not specified
-          model_provider: agentData.llmConfig?.provider || 'openai',
-          model_name: agentData.llmConfig?.model || 'gpt-4',
+          model_provider: provider,
+          model_name: agentData.llmConfig?.model || defaultModel,
           api_key: agentData.llmConfig?.apiKey || '',
           api_endpoint: apiEndpoint, // ✅ NEW: Include calculated endpoint
           system_prompt: `You are a specialized child agent trained for ${agentData.type || 'general'} tasks.`,

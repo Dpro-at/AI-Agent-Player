@@ -98,6 +98,7 @@ async def create_agent(
         # Add debugging information
         import logging
         logging.info(f"Creating agent with data: name={request.name}, user_id={user_id}")
+        logging.info(f"📋 CREATE REQUEST - Provider: {request.model_provider}, Model: {request.model_name}")
         logging.info(f"Request data: {request.dict()}")
         
         agent_id = await agent_service.create_agent(
@@ -233,16 +234,26 @@ async def test_agent(
         agent_info = result.get("agent_info", {})
         performance = result.get("performance", {})
         
+        # Fix model display for Ollama (show actual model name instead of hardcoded)
+        model_provider = agent_info.get('model_provider', 'unknown')
+        model_name = agent_info.get('model_name', 'unknown')
+        
+        # For Ollama, use the actual model name from test results if available
+        if model_provider == "ollama" and test_data.get("model_info"):
+            model_display = test_data.get("model_info", model_name)
+        else:
+            model_display = f"{model_provider}/{model_name}"
+        
         formatted_data = {
             "agent_name": agent_info.get("name", "Unknown Agent"),
-            "model": f"{agent_info.get('model_provider', 'unknown')}/{agent_info.get('model_name', 'unknown')}",
+            "model": model_display,
             "user_message": test_data.get("user_message", request.message),
             "ai_response": test_data.get("agent_response", "No response generated"),
             "response_time": test_data.get("response_time", "0s"),
             "usage": {
-                "total_tokens": performance.get("estimated_tokens", 0),
-                "prompt_tokens": len(request.message.split()) if request.message else 0,
-                "completion_tokens": performance.get("estimated_tokens", 0) - (len(request.message.split()) if request.message else 0)
+                "total_tokens": test_data.get("tokens_used", performance.get("estimated_tokens", 0)),
+                "prompt_tokens": test_data.get("prompt_tokens", len(request.message.split()) if request.message else 0),
+                "completion_tokens": test_data.get("completion_tokens", performance.get("estimated_tokens", 0) - (len(request.message.split()) if request.message else 0))
             }
         }
         

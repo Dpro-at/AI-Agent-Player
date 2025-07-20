@@ -74,19 +74,19 @@ const ollamaService = {
 
   async generateResponse(model: string, prompt: string): Promise<string> {
     try {
-      const response = await fetch('http://localhost:11434/api/generate', {
+      const response = await fetch('http://localhost:11434/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          prompt,
+          messages: [{ role: 'user', content: prompt }],
           stream: false
         })
       });
       
       if (response.ok) {
         const data = await response.json();
-        return data.response || 'No response from Ollama';
+        return data.choices?.[0]?.message?.content || 'No response from Ollama';
       }
       throw new Error('Ollama request failed');
     } catch (error) {

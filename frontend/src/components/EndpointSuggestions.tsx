@@ -556,9 +556,9 @@ export const EndpointSuggestions: React.FC<EndpointSuggestionsProps> = ({
             fontSize: '10px',
             cursor: 'pointer'
           }}
-          onClick={() => handleSuggestionSelect(CLOUD_AI_PROVIDERS.anthropic)}
+          onClick={() => handleSuggestionSelect(CLOUD_AI_PROVIDERS.google)}
         >
-          🧠 Claude
+          🔍 Gemini
         </button>
         <button
           type="button"
@@ -574,21 +574,6 @@ export const EndpointSuggestions: React.FC<EndpointSuggestionsProps> = ({
           onClick={() => handleSuggestionSelect(LOCAL_AI_SERVERS.ollama)}
         >
           🦙 Ollama
-        </button>
-        <button
-          type="button"
-          style={{
-            padding: '4px 8px',
-            backgroundColor: '#17a2b8',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '10px',
-            cursor: 'pointer'
-          }}
-          onClick={() => handleSuggestionSelect(LOCAL_AI_SERVERS.lmstudio)}
-        >
-          🖥️ LM Studio
         </button>
       </div>
     </div>

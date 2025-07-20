@@ -269,13 +269,31 @@ export const agentsService = {
       const apiEndpoint = calculateApiEndpoint(agentData.llmConfig);
       console.log("🔗 API endpoint calculated:", apiEndpoint);
 
+      // ✅ Smart model selection based on provider
+      const provider = agentData.llmConfig.provider;
+      let modelName = agentData.llmConfig.model;
+
+      // If no model specified, use provider-specific defaults
+      if (!modelName || modelName === "gpt-4") {
+        if (provider === "ollama") {
+          modelName = "qwen2.5vl:7b";
+        } else if (provider === "google") {
+          modelName = "gemini-1.5-flash";
+        } else {
+          modelName = "gpt-4"; // Default for OpenAI
+        }
+        console.log(
+          `🔄 Using default model '${modelName}' for provider '${provider}'`
+        );
+      }
+
       // Transform frontend data to backend format
       const backendData = {
         name: agentData.name,
         description: agentData.description,
         agent_type: agentData.type || "main",
-        model_provider: agentData.llmConfig.provider,
-        model_name: agentData.llmConfig.model,
+        model_provider: provider,
+        model_name: modelName,
         system_prompt: "You are a helpful AI assistant.",
         temperature: agentData.settings.temperature,
         max_tokens: agentData.settings.maxTokens,
@@ -347,13 +365,35 @@ export const agentsService = {
       const apiEndpoint = calculateApiEndpoint(agentData.llmConfig);
       console.log("🔗 Child agent API endpoint calculated:", apiEndpoint);
 
+      // ✅ Smart model selection for child agents too
+      const provider = agentData.llmConfig?.provider || "openai";
+      let modelName = agentData.llmConfig?.model;
+
+      // If no model specified, use provider-specific defaults
+      if (
+        !modelName ||
+        modelName === "gpt-3.5-turbo" ||
+        modelName === "gpt-4"
+      ) {
+        if (provider === "ollama") {
+          modelName = "qwen2.5vl:7b";
+        } else if (provider === "google") {
+          modelName = "gemini-1.5-flash";
+        } else {
+          modelName = "gpt-3.5-turbo"; // Default for OpenAI child agents
+        }
+        console.log(
+          `🔄 Child agent using default model '${modelName}' for provider '${provider}'`
+        );
+      }
+
       // Transform frontend data to backend format
       const backendData = {
         name: agentData.name,
         description: agentData.description,
         parent_agent_id: agentData.parent_agent_id,
-        model_provider: agentData.llmConfig?.provider || "openai",
-        model_name: agentData.llmConfig?.model || "gpt-3.5-turbo",
+        model_provider: provider,
+        model_name: modelName,
         system_prompt: "You are a specialized AI assistant.",
         temperature: agentData.settings?.temperature || 0.7,
         max_tokens: agentData.settings?.maxTokens || 1024,

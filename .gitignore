@@ -255,3 +255,5 @@ README.local.md
 production.json
 staging.json
 local.json 
+landing_page_agent/
+landing_page_agent/tailwind.config.js

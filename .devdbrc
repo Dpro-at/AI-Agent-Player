@@ -2,5 +2,9 @@
   {
     "type": "sqlite",
     "path": "./data/database.db"
+  },
+  {
+    "type": "sqlite",
+    "path": "c:\\MAMP\\htdocs\\ai-agent-player\\backend\\data\\database.db"
   }
 ]
