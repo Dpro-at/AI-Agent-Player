@@ -14,7 +14,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   const location = useLocation();
 
   useEffect(() => {
-    checkSystemStatus();
+    // Only check authentication, no system status check
+    checkAuth();
     
     // Listen for authentication changes
     const handleAuthChange = () => {
@@ -29,60 +30,41 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     };
   }, []);
 
-  const checkSystemStatus = async () => {
-    try {
-      console.log('Checking system status...');
-      const status = await authService.checkSystemStatus();
-      console.log('System status:', status);
-      
-      if (!status.admin_exists) {
-        setSystemStatus('needs_admin');
-        setLoading(false);
-        // Redirect to admin setup if not already there
-        if (location.pathname !== '/admin-setup') {
-          navigate('/admin-setup');
-        }
-        return;
-      }
-      
-      setSystemStatus('ready');
-      // Now check authentication
-      await checkAuth();
-    } catch (err) {
-      console.error('Failed to check system status:', err);
-      // If system status check fails, proceed with authentication check
-      console.log('Proceeding with authentication check despite system status error...');
-      setSystemStatus('ready');
-      await checkAuth();
-    }
-  };
-
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
         console.log('No token found');
         setIsAuthenticated(false);
+        setSystemStatus('ready'); // Assume system is ready if no token
         setLoading(false);
         return;
       }
 
       console.log('Token found, validating with server...');
-      const user = await authService.getCurrentUser();
-      console.log('Authentication successful, user:', user);
-      setIsAuthenticated(true);
-      setLoading(false);
+      
+      // Quick token validation without heavy system checks
+      try {
+        const user = await authService.getCurrentUser();
+        console.log('Authentication successful, user:', user);
+        setIsAuthenticated(true);
+        setSystemStatus('ready');
+        setLoading(false);
+      } catch (authError) {
+        console.log('Token invalid, clearing auth data');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+        setSystemStatus('ready');
+        setLoading(false);
+      }
     } catch (err) {
       console.log('Authentication check failed:', err);
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
       setIsAuthenticated(false);
+      setSystemStatus('ready');
       setLoading(false);
-      
-      // If we're not already on the login page, redirect there
-      if (location.pathname !== '/login') {
-        navigate('/login');
-      }
     }
   };
 

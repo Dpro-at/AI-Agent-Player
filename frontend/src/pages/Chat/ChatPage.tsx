@@ -187,7 +187,7 @@ const ChatPage: React.FC = () => {
     loadConversations();
     loadAgents();
     loadSettings();
-  }, []);
+  }, [loadConversations, loadAgents]);
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -200,6 +200,13 @@ const ChatPage: React.FC = () => {
       loadMessages(currentConversation.id);
     }
   }, [currentConversation]);
+  
+  // Set default agent when agents load
+  useEffect(() => {
+    if (agents.length > 0 && !selectedAgent) {
+      setSelectedAgent(agents[0]);
+    }
+  }, [agents, selectedAgent]);
   
   // Auto-resize textarea
   useEffect(() => {
@@ -235,9 +242,11 @@ const ChatPage: React.FC = () => {
   const loadAgents = useCallback(async () => {
     try {
       const response = await agentsService.getAgents();
+      console.log('🤖 Agents loaded:', response);
       setAgents(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error loading agents:', error);
+      setAgents([]); // Set empty array on error
     }
   }, []);
   
@@ -280,13 +289,20 @@ const ChatPage: React.FC = () => {
   // Create new conversation
   const createConversation = async () => {
     try {
+      // Use selected agent or default agent
+      const agentId = selectedAgent?.id || settings.defaultAgent || (agents.length > 0 ? agents[0].id : undefined);
+      
+      console.log('🚀 Creating conversation with agent:', agentId, selectedAgent);
+      
       const response = await chatService.createConversation({
-        title: 'New Chat',
-        agent_id: settings.defaultAgent || undefined
+        title: selectedAgent ? `Chat with ${selectedAgent.name}` : 'New Chat',
+        agent_id: agentId
       });
       
       if (response.success && response.data) {
         const newConversation = response.data;
+        
+        console.log('✅ Conversation created:', newConversation);
         setConversations(prev => [newConversation, ...prev]);
         setCurrentConversation(newConversation);
         setMessages([]);
@@ -335,9 +351,10 @@ const ChatPage: React.FC = () => {
     setIsTyping(true);
     
     try {
-      // Send message to backend
+      // Send message to backend with agent context
       const response = await chatService.sendMessage(currentConversation.id, {
         content: messageText,
+        agent_id: selectedAgent?.id || currentConversation.agent_id,
         attachments: files
       });
       
@@ -599,6 +616,16 @@ const ChatPage: React.FC = () => {
                   )}
                   <span className="message-count">{messages.length} messages</span>
                 </div>
+              </div>
+              
+              {/* Agent Selector */}
+              <div className="agent-selector-container">
+                <ModelSelector
+                  agents={agents}
+                  selectedAgent={selectedAgent}
+                  onAgentChange={setSelectedAgent}
+                  isLoading={loading}
+                />
               </div>
               
               <div className="chat-actions">

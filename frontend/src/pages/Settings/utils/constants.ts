@@ -10,6 +10,7 @@ export const TAB_LIST: TabItem[] = [
   { key: "integrations", label: "Integrations" },
   { key: "updates", label: "Updates" },
   { key: "aisync", label: "AI Sync & Files" },
+  { key: "system-health", label: "System Health" },
 ];
 
 // Default settings

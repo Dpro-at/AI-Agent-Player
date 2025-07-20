@@ -7,6 +7,7 @@ import {
   KnowledgeTab,
   UpdatesTab,
   AISyncTab,
+  SimpleSystemHealth,
 } from './components';
 import { TAB_LIST } from './utils/constants';
 
@@ -85,6 +86,9 @@ const SettingsPage: React.FC = () => {
           />
         );
 
+      case 'system-health':
+        return <SimpleSystemHealth />;
+
       default:
         return (
           <div style={{ padding: '24px 0' }}>
@@ -98,103 +102,100 @@ const SettingsPage: React.FC = () => {
   if (loading) {
     return (
       <div style={{
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh'
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '50vh'
       }}>
-        <div>Loading settings...</div>
+        <div>Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#e53935' }}>
-        <div>Error: {error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          style={{ 
-            marginTop: 16, 
-            padding: '8px 16px', 
-            background: '#1976d2', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: 6, 
-            cursor: 'pointer' 
-          }}
-        >
-          Retry
-        </button>
+      <div style={{
+        padding: '24px',
+        backgroundColor: '#ffebee',
+        color: '#c62828',
+        borderRadius: '4px'
+      }}>
+        <h3>Error</h3>
+        <div>{error}</div>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      flex: 1, 
-      height: '100vh', 
-      width: '100vw', 
-      padding: 0, 
-      margin: 0, 
-      background: '#f8f8f8' 
+    <div style={{
+      display: 'flex',
+      height: '100vh',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
     }}>
-      <div style={{ 
-        padding: '24px 32px 0 32px', 
-        background: 'none', 
-        zIndex: 2 
+      {/* Sidebar */}
+      <div style={{
+        width: '280px',
+        borderRight: '1px solid #e0e0e0',
+        backgroundColor: '#fafafa'
       }}>
-        <h2 style={{ margin: 0 }}>Settings</h2>
-        
-        <button
-          onClick={() => navigate('/registration')}
-          style={{ 
-            margin: '16px 0 24px 0', 
-            padding: '10px 24px', 
-            borderRadius: 8, 
-            background: '#1976d2', 
-            color: '#fff', 
-            border: 'none', 
-            fontWeight: 600, 
-            fontSize: 15, 
-            cursor: 'pointer' 
-          }}
-        >
-          Registration & Profile
-        </button>
-        
-        {/* Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: 24, 
-          borderBottom: '2px solid #eee', 
-          marginBottom: 24 
-        }}>
-          {TAB_LIST.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+        <div style={{ padding: '24px 16px' }}>
+          <h2 style={{
+            margin: '0 0 24px 0',
+            fontSize: '20px',
+            fontWeight: 600,
+            color: '#1a1a1a'
+          }}>
+            Settings
+          </h2>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder="Search settings..."
               style={{
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab.key ? '3px solid #1976d2' : '3px solid transparent',
-                color: activeTab === tab.key ? '#1976d2' : '#333',
-                fontWeight: activeTab === tab.key ? 800 : 600,
-                fontSize: 18,
-                padding: '12px 24px 8px 0',
-                cursor: 'pointer',
-                outline: 'none',
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #e0e0e0',
+                borderRadius: '6px',
+                fontSize: '14px'
               }}
-            >
-              {tab.label}
-            </button>
-          ))}
+            />
+          </div>
+
+          <div>
+            {TAB_LIST.map((tab) => (
+              <div
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  marginBottom: '4px',
+                  backgroundColor: activeTab === tab.key ? '#e3f2fd' : 'transparent',
+                  color: activeTab === tab.key ? '#1976d2' : '#666',
+                  fontSize: '14px',
+                  fontWeight: activeTab === tab.key ? 500 : 400,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {tab.label}
+              </div>
+            ))}
+          </div>
         </div>
-        
-        {/* Tab Content */}
-        <div style={{ minHeight: 200 }}>
+      </div>
+
+      {/* Main Content */}
+      <div style={{
+        flex: 1,
+        backgroundColor: '#fff',
+        overflow: 'auto'
+      }}>
+        <div style={{
+          padding: '32px',
+          maxWidth: '800px'
+        }}>
           {renderTabContent()}
         </div>
       </div>

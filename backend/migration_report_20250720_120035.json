@@ -1,0 +1,357 @@
+{
+  "timestamp": "2025-07-20T12:00:35.145230",
+  "total_migrations": 20,
+  "migration_files": [
+    {
+      "filename": "001_create_users_table.py",
+      "filepath": "migrations/versions\\001_create_users_table.py",
+      "file_size": 1879,
+      "modified_time": "2025-07-17T21:34:24.217534",
+      "operations": [
+        "CREATE TABLE users",
+        "DROP TABLE users"
+      ],
+      "tables_affected": [
+        "users"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "001"
+    },
+    {
+      "filename": "002_create_user_profiles_table.py",
+      "filepath": "migrations/versions\\002_create_user_profiles_table.py",
+      "file_size": 1337,
+      "modified_time": "2025-07-17T21:34:34.289169",
+      "operations": [
+        "CREATE TABLE user_profiles",
+        "DROP TABLE user_profiles"
+      ],
+      "tables_affected": [
+        "user_profiles"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "002",
+      "down_revision": "001"
+    },
+    {
+      "filename": "003_create_user_sessions_table.py",
+      "filepath": "migrations/versions\\003_create_user_sessions_table.py",
+      "file_size": 1384,
+      "modified_time": "2025-07-17T21:34:43.715978",
+      "operations": [
+        "CREATE TABLE user_sessions",
+        "DROP TABLE user_sessions"
+      ],
+      "tables_affected": [
+        "user_sessions"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "003",
+      "down_revision": "002"
+    },
+    {
+      "filename": "004_create_activity_logs_table.py",
+      "filepath": "migrations/versions\\004_create_activity_logs_table.py",
+      "file_size": 1110,
+      "modified_time": "2025-07-17T21:34:52.287834",
+      "operations": [
+        "CREATE TABLE activity_logs",
+        "DROP TABLE activity_logs"
+      ],
+      "tables_affected": [
+        "activity_logs"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "004",
+      "down_revision": "003"
+    },
+    {
+      "filename": "005_create_agents_table.py",
+      "filepath": "migrations/versions\\005_create_agents_table.py",
+      "file_size": 3171,
+      "modified_time": "2025-07-17T21:35:06.364953",
+      "operations": [
+        "CREATE TABLE agents",
+        "DROP TABLE agents"
+      ],
+      "tables_affected": [
+        "agents"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "005",
+      "down_revision": "004"
+    },
+    {
+      "filename": "006_create_agent_capabilities_table.py",
+      "filepath": "migrations/versions\\006_create_agent_capabilities_table.py",
+      "file_size": 1568,
+      "modified_time": "2025-07-17T21:35:16.581544",
+      "operations": [
+        "CREATE TABLE agent_capabilities",
+        "DROP TABLE agent_capabilities"
+      ],
+      "tables_affected": [
+        "agent_capabilities"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "006",
+      "down_revision": "005"
+    },
+    {
+      "filename": "007_create_agent_performance_table.py",
+      "filepath": "migrations/versions\\007_create_agent_performance_table.py",
+      "file_size": 1373,
+      "modified_time": "2025-07-17T21:35:26.090893",
+      "operations": [
+        "CREATE TABLE agent_performance",
+        "DROP TABLE agent_performance"
+      ],
+      "tables_affected": [
+        "agent_performance"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "007",
+      "down_revision": "006"
+    },
+    {
+      "filename": "008_create_conversations_table.py",
+      "filepath": "migrations/versions\\008_create_conversations_table.py",
+      "file_size": 1241,
+      "modified_time": "2025-07-17T21:35:35.372497",
+      "operations": [
+        "CREATE TABLE conversations",
+        "DROP TABLE conversations"
+      ],
+      "tables_affected": [
+        "conversations"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "008",
+      "down_revision": "007"
+    },
+    {
+      "filename": "009_create_messages_table.py",
+      "filepath": "migrations/versions\\009_create_messages_table.py",
+      "file_size": 1154,
+      "modified_time": "2025-07-17T21:35:44.510265",
+      "operations": [
+        "CREATE TABLE messages",
+        "DROP TABLE messages"
+      ],
+      "tables_affected": [
+        "messages"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "009",
+      "down_revision": "008"
+    },
+    {
+      "filename": "010_create_tasks_table.py",
+      "filepath": "migrations/versions\\010_create_tasks_table.py",
+      "file_size": 1223,
+      "modified_time": "2025-07-17T21:35:53.500909",
+      "operations": [
+        "CREATE TABLE tasks",
+        "DROP TABLE tasks"
+      ],
+      "tables_affected": [
+        "tasks"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "010",
+      "down_revision": "009"
+    },
+    {
+      "filename": "011_create_chat_session_history_table.py",
+      "filepath": "migrations/versions\\011_create_chat_session_history_table.py",
+      "file_size": 1284,
+      "modified_time": "2025-07-17T21:36:02.552479",
+      "operations": [
+        "CREATE TABLE chat_session_history",
+        "DROP TABLE chat_session_history"
+      ],
+      "tables_affected": [
+        "chat_session_history"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "011",
+      "down_revision": "010"
+    },
+    {
+      "filename": "012_create_boards_table.py",
+      "filepath": "migrations/versions\\012_create_boards_table.py",
+      "file_size": 1966,
+      "modified_time": "2025-07-17T21:36:13.767499",
+      "operations": [
+        "CREATE TABLE boards",
+        "DROP TABLE boards"
+      ],
+      "tables_affected": [
+        "boards"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "012",
+      "down_revision": "011"
+    },
+    {
+      "filename": "013_create_board_nodes_table.py",
+      "filepath": "migrations/versions\\013_create_board_nodes_table.py",
+      "file_size": 1933,
+      "modified_time": "2025-07-17T21:36:24.832179",
+      "operations": [
+        "CREATE TABLE board_nodes",
+        "DROP TABLE board_nodes"
+      ],
+      "tables_affected": [
+        "board_nodes"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "013",
+      "down_revision": "012"
+    },
+    {
+      "filename": "014_create_board_connections_table.py",
+      "filepath": "migrations/versions\\014_create_board_connections_table.py",
+      "file_size": 1902,
+      "modified_time": "2025-07-17T21:36:37.376860",
+      "operations": [
+        "CREATE TABLE board_connections",
+        "DROP TABLE board_connections"
+      ],
+      "tables_affected": [
+        "board_connections"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "014",
+      "down_revision": "013"
+    },
+    {
+      "filename": "015_create_board_executions_table.py",
+      "filepath": "migrations/versions\\015_create_board_executions_table.py",
+      "file_size": 1857,
+      "modified_time": "2025-07-17T21:36:48.604285",
+      "operations": [
+        "CREATE TABLE board_executions",
+        "DROP TABLE board_executions"
+      ],
+      "tables_affected": [
+        "board_executions"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "015",
+      "down_revision": "014"
+    },
+    {
+      "filename": "016_create_board_templates_table.py",
+      "filepath": "migrations/versions\\016_create_board_templates_table.py",
+      "file_size": 1629,
+      "modified_time": "2025-07-17T21:36:59.742390",
+      "operations": [
+        "CREATE TABLE board_templates",
+        "DROP TABLE board_templates"
+      ],
+      "tables_affected": [
+        "board_templates"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "016",
+      "down_revision": "015"
+    },
+    {
+      "filename": "017_create_notifications_table.py",
+      "filepath": "migrations/versions\\017_create_notifications_table.py",
+      "file_size": 1951,
+      "modified_time": "2025-07-17T21:37:11.150105",
+      "operations": [
+        "CREATE TABLE notifications",
+        "DROP TABLE notifications"
+      ],
+      "tables_affected": [
+        "notifications"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "017",
+      "down_revision": "016"
+    },
+    {
+      "filename": "018_create_user_analytics_table.py",
+      "filepath": "migrations/versions\\018_create_user_analytics_table.py",
+      "file_size": 1736,
+      "modified_time": "2025-07-17T21:37:22.180020",
+      "operations": [
+        "CREATE TABLE user_analytics",
+        "DROP TABLE user_analytics"
+      ],
+      "tables_affected": [
+        "user_analytics"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "018",
+      "down_revision": "017"
+    },
+    {
+      "filename": "019_create_system_analytics_table.py",
+      "filepath": "migrations/versions\\019_create_system_analytics_table.py",
+      "file_size": 1482,
+      "modified_time": "2025-07-17T21:37:32.882264",
+      "operations": [
+        "CREATE TABLE system_analytics",
+        "DROP TABLE system_analytics"
+      ],
+      "tables_affected": [
+        "system_analytics"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "019",
+      "down_revision": "018"
+    },
+    {
+      "filename": "020_create_system_settings_table.py",
+      "filepath": "migrations/versions\\020_create_system_settings_table.py",
+      "file_size": 1706,
+      "modified_time": "2025-07-17T21:37:43.889317",
+      "operations": [
+        "CREATE TABLE system_settings",
+        "DROP TABLE system_settings"
+      ],
+      "tables_affected": [
+        "system_settings"
+      ],
+      "status": "\u2705 Valid",
+      "revision_id": "020",
+      "down_revision": "019"
+    }
+  ],
+  "schema_evolution": {
+    "total_tables_affected": 20,
+    "total_operations": 40,
+    "tables_created_count": 20,
+    "tables_modified_count": 0
+  },
+  "tables_created": [
+    "board_connections",
+    "agent_capabilities",
+    "board_nodes",
+    "system_settings",
+    "system_analytics",
+    "chat_session_history",
+    "activity_logs",
+    "user_sessions",
+    "messages",
+    "conversations",
+    "board_templates",
+    "agents",
+    "user_analytics",
+    "users",
+    "user_profiles",
+    "agent_performance",
+    "boards",
+    "tasks",
+    "board_executions",
+    "notifications"
+  ],
+  "tables_modified": [],
+  "recommendations": [
+    "20 migrations missing downgrade functions"
+  ]
+}

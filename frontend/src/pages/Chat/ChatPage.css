@@ -47,6 +47,70 @@
   --transition-slow: 350ms ease-in-out;
 }
 
+/* Agent Selector Styles */
+.agent-selector-container {
+  display: flex;
+  align-items: center;
+  margin: 0 var(--spacing-md);
+  min-width: 200px;
+}
+
+.agent-selector-container .model-selector {
+  width: 100%;
+  max-width: 280px;
+}
+
+.agent-selector-container .model-selector .agent-dropdown {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.agent-selector-container .model-selector .agent-dropdown:hover {
+  border-color: var(--border-hover);
+  background: var(--background-color);
+}
+
+.agent-selector-container .model-selector .agent-dropdown:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.agent-selector-container .model-selector .selected-agent-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.agent-selector-container .model-selector .selected-agent-info .agent-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .agent-selector-container {
+    margin: 0 var(--spacing-sm);
+    min-width: 150px;
+  }
+  
+  .agent-selector-container .model-selector {
+    max-width: 200px;
+  }
+}
+
 /* Dark theme */
 .chat-container.dark {
   --background-color: #0f172a;

@@ -31,6 +31,7 @@ from api.agent_performance.endpoints import router as agent_performance_router
 from api.activity_logs.endpoints import router as activity_logs_router
 from api.notifications.endpoints import router as notifications_router
 from api.system_settings.endpoints import router as system_settings_router
+from api.system_health.endpoints import router as system_health_router
 from api.boards.endpoints import router as boards_router
 from api.user_analytics.endpoints import router as user_analytics_router
 from api.system_analytics.endpoints import router as system_analytics_router
@@ -112,6 +113,7 @@ app.include_router(agent_performance_router, prefix="/api", tags=["Agent Perform
 app.include_router(activity_logs_router, prefix="/api", tags=["Activity Logs"])
 app.include_router(notifications_router, prefix="/api", tags=["Notifications"])
 app.include_router(system_settings_router, prefix="/api", tags=["System Settings"])
+app.include_router(system_health_router, prefix="/api", tags=["System Health"])
 app.include_router(boards_router, prefix="/api", tags=["Boards"])
 app.include_router(user_analytics_router, prefix="/api", tags=["User Analytics"])
 app.include_router(system_analytics_router, prefix="/api", tags=["System Analytics"])
