@@ -54,7 +54,7 @@ async def initialize_database():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     conversation_id INTEGER NOT NULL,
                     content TEXT NOT NULL,
-                    sender VARCHAR(50) NOT NULL,
+                    message_role VARCHAR(50) NOT NULL,
                     message_type VARCHAR(50) DEFAULT 'text',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id)

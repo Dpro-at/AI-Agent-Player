@@ -176,19 +176,50 @@ class Message(Base):
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
     content = Column(Text, nullable=False)
-    message_role = Column(String, nullable=False)  # Changed from 'sender' to 'message_role'
-    message_type = Column(String, nullable=True)  # Remove default here
-    created_at = Column(DateTime, nullable=True)  # Remove default here
+    content_type = Column(Text, default='text', nullable=True)
+    message_role = Column(Text, nullable=False)  # user, assistant, system
+    tokens_used = Column(Integer, default=0, nullable=True)
+    processing_time_ms = Column(Integer, nullable=True)
+    model_used = Column(Text, nullable=True)
+    cost = Column(Float, default=0.0, nullable=True)
+    attachments = Column(Text, nullable=True)  # JSON string
+    is_edited = Column(Boolean, default=False, nullable=True)
+    edit_history = Column(Text, nullable=True)  # JSON string
+    is_educational = Column(Boolean, default=False, nullable=True)
+    lesson_context = Column(Text, nullable=True)
+    feedback_provided = Column(Text, nullable=True)
+    parent_message_id = Column(Integer, nullable=True)
+    thread_count = Column(Integer, default=0, nullable=True)
+    status = Column(Text, default='sent', nullable=True)
+    visibility = Column(Text, default='normal', nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    edited_at = Column(DateTime, nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    message_type = Column(String(50), default='text', nullable=True)  # ADDED: The missing column
     
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
     
     def __init__(self, **kwargs):
-        # Set defaults in constructor instead of column definition
+        # Set defaults for important fields if not provided
+        if 'content_type' not in kwargs:
+            kwargs['content_type'] = 'text'
         if 'message_type' not in kwargs:
             kwargs['message_type'] = 'text'
-        if 'created_at' not in kwargs:
-            kwargs['created_at'] = datetime.utcnow()
+        if 'status' not in kwargs:
+            kwargs['status'] = 'sent'
+        if 'visibility' not in kwargs:
+            kwargs['visibility'] = 'normal'
+        if 'tokens_used' not in kwargs:
+            kwargs['tokens_used'] = 0
+        if 'cost' not in kwargs:
+            kwargs['cost'] = 0.0
+        if 'is_edited' not in kwargs:
+            kwargs['is_edited'] = False
+        if 'is_educational' not in kwargs:
+            kwargs['is_educational'] = False
+        if 'thread_count' not in kwargs:
+            kwargs['thread_count'] = 0
         super().__init__(**kwargs)
 
 class Task(Base):

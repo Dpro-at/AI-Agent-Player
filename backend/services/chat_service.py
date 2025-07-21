@@ -256,7 +256,7 @@ class ChatService:
         self, db: AsyncSession, conversation_id: str, content: str,
         sender_type: str = "user", agent_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Add message to conversation - fixed error handling"""
+        """Add message to conversation - updated for new schema"""
         try:
             # Convert conversation_id to int with proper error handling
             try:
@@ -274,11 +274,20 @@ class ChatService:
                 self.logger.error(f"Conversation {conv_id} not found")
                 raise Exception(f"Conversation {conv_id} not found")
             
-            # Create message - let __init__ handle defaults
+            # Create message with all required fields
             message = Message(
                 conversation_id=conv_id,
                 content=content,
-                message_role=sender_type  # Changed from 'sender' to 'message_role'
+                message_role=sender_type,  # user, assistant, system
+                content_type='text',
+                message_type='text',
+                status='sent',
+                visibility='normal',
+                tokens_used=0,
+                cost=0.0,
+                is_edited=False,
+                is_educational=False,
+                thread_count=0
             )
             
             # Add and commit
@@ -295,9 +304,14 @@ class ChatService:
                 "message_id": message.id,
                 "content": content,
                 "sender": sender_type,  # Keep as 'sender' for API compatibility
+                "message_role": sender_type,
                 "conversation_id": conv_id,
-                "created_at": message.created_at,
-                "message_type": message.message_type
+                "content_type": message.content_type,
+                "message_type": message.message_type,
+                "status": message.status,
+                "tokens_used": message.tokens_used,
+                "cost": message.cost,
+                "created_at": message.created_at.isoformat() if message.created_at else None
             }
             
         except Exception as e:
@@ -473,7 +487,7 @@ class ChatService:
         }
     
     def _message_to_dict(self, message: Message) -> Dict[str, Any]:
-        """Convert Message model to dictionary"""
+        """Convert Message model to dictionary - updated for new schema"""
         if not message:
             return {}
             
@@ -481,7 +495,25 @@ class ChatService:
             "id": message.id,
             "conversation_id": message.conversation_id,
             "content": message.content,
-                            "sender": message.message_role,  # Changed from message.sender to message.message_role
-            "message_type": message.message_type,
-            "created_at": message.created_at.isoformat() if message.created_at else None
+            "content_type": getattr(message, 'content_type', 'text'),
+            "sender": message.message_role,  # API compatibility - map message_role to sender
+            "message_role": message.message_role,
+            "message_type": getattr(message, 'message_type', 'text'),
+            "tokens_used": getattr(message, 'tokens_used', 0),
+            "processing_time_ms": getattr(message, 'processing_time_ms', None),
+            "model_used": getattr(message, 'model_used', None),
+            "cost": getattr(message, 'cost', 0.0),
+            "attachments": getattr(message, 'attachments', None),
+            "is_edited": getattr(message, 'is_edited', False),
+            "edit_history": getattr(message, 'edit_history', None),
+            "is_educational": getattr(message, 'is_educational', False),
+            "lesson_context": getattr(message, 'lesson_context', None),
+            "feedback_provided": getattr(message, 'feedback_provided', None),
+            "parent_message_id": getattr(message, 'parent_message_id', None),
+            "thread_count": getattr(message, 'thread_count', 0),
+            "status": getattr(message, 'status', 'sent'),
+            "visibility": getattr(message, 'visibility', 'normal'),
+            "created_at": message.created_at.isoformat() if message.created_at else None,
+            "edited_at": message.edited_at.isoformat() if getattr(message, 'edited_at', None) else None,
+            "read_at": message.read_at.isoformat() if getattr(message, 'read_at', None) else None
         } 
