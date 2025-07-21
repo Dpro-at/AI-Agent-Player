@@ -153,14 +153,19 @@ class ChatService:
             return None
 
     async def update_conversation_by_uuid(
-        self, db: AsyncSession, conversation_uuid: str, update_data: Dict[str, Any]
+        self, db: AsyncSession, conversation_uuid: str, update_data: Dict[str, Any], user_id: int
     ) -> bool:
-        """Update conversation by UUID"""
+        """Update conversation by UUID with user ownership validation"""
         try:
-            # Update the conversation
+            # Update the conversation with user ownership check
             query = (
                 update(Conversation)
-                .where(Conversation.uuid == conversation_uuid)
+                .where(
+                    and_(
+                        Conversation.uuid == conversation_uuid,
+                        Conversation.user_id == user_id
+                    )
+                )
                 .values(**update_data, updated_at=datetime.utcnow())
             )
             
@@ -254,7 +259,8 @@ class ChatService:
     
     async def add_message_to_conversation(
         self, db: AsyncSession, conversation_id: str, content: str,
-        sender_type: str = "user", agent_id: Optional[int] = None
+        sender_type: str = "user", agent_id: Optional[int] = None,
+        tokens_used: int = 0, processing_time: int = 0, model_used: str = "unknown"
     ) -> Dict[str, Any]:
         """Add message to conversation - updated for new schema"""
         try:
@@ -283,7 +289,7 @@ class ChatService:
                 message_type='text',
                 status='sent',
                 visibility='normal',
-                tokens_used=0,
+                tokens_used=tokens_used,
                 cost=0.0,
                 is_edited=False,
                 is_educational=False,
@@ -326,37 +332,113 @@ class ChatService:
         agent_id: Optional[int] = None, conversation_history: Optional[List] = None,
         include_context: bool = True
     ) -> Dict[str, Any]:
-        """Generate AI response for a message"""
+        """Generate AI response using real agent system"""
         try:
-            # Mock AI response for now
-            ai_responses = [
-                "I understand your question. Let me help you with that.",
-                "That's an interesting point. Here's what I think about it.",
-                "Based on the information you provided, I would suggest the following approach.",
-                "Thank you for sharing that. I can help you work through this step by step.",
-                "I see what you're asking about. Let me provide some guidance on this topic."
-            ]
+            # ✅ FIXED: Use real agent instead of mock responses
+            if not agent_id:
+                # Try to get agent_id from conversation
+                conversation = await self.get_conversation_by_id(db=db, conversation_id=conversation_id)
+                if conversation and conversation.get("agent_id"):
+                    agent_id = conversation["agent_id"]
+                    logging.info(f"🔗 Using agent_id from conversation: {agent_id}")
+                else:
+                    # If still no agent, try to get default agent
+                    from sqlalchemy import select
+                    from models.database import Agent
+                    
+                    query = select(Agent).where(
+                        and_(
+                            Agent.is_active == True,
+                            Agent.model_name.like('%qwen%')  # Prefer qwen model
+                        )
+                    ).limit(1)
+                    result = await db.execute(query)
+                    default_agent = result.scalar()
+                    
+                    if default_agent:
+                        agent_id = default_agent.id
+                        logging.info(f"🎯 Using default qwen agent: {agent_id}")
+                    else:
+                        # Last resort: get any active agent
+                        query = select(Agent).where(Agent.is_active == True).limit(1)
+                        result = await db.execute(query)
+                        fallback_agent = result.scalar()
+                        
+                        if fallback_agent:
+                            agent_id = fallback_agent.id
+                            logging.info(f"⚠️ Using fallback agent: {agent_id}")
+                        else:
+                            logging.error("❌ No active agents found in system")
+                            return {
+                                "response": "No AI agents are available. Please create an agent first.",
+                                "status": "error",
+                                "error": "No agents available"
+                            }
             
-            import random
-            response = random.choice(ai_responses)
+            # Import and use AgentService for real AI responses
+            from services.agent_service import AgentService
+            agent_service = AgentService()
             
-            # Add the AI response as a message
+            logging.info(f"🤖 Generating AI response using Agent {agent_id} for message: {message[:100]}...")
+            
+            # ✅ USE REAL AGENT INSTEAD OF MOCK
+            result = await agent_service.test_agent(db, agent_id, message)
+            
+            if result.get("status") == "error":
+                error_msg = result.get("message", "Agent test failed")
+                logging.error(f"❌ Agent {agent_id} test failed: {error_msg}")
+                
+                # Return helpful error message
+                return {
+                    "response": f"I'm having trouble connecting to the AI model. Error: {error_msg}",
+                    "status": "error",
+                    "error": error_msg
+                }
+            
+            # Extract response from agent test results
+            test_results = result.get("test_results", {})
+            # FIXED: Use correct key name - agent_response instead of response
+            ai_response = test_results.get("agent_response", test_results.get("response", "I apologize, but I couldn't generate a response."))
+            
+            # Extract performance metrics
+            performance = result.get("performance", {})
+            tokens_used = test_results.get("tokens_used", 0)
+            processing_time = performance.get("response_time_ms", 0) / 1000.0  # Convert to seconds
+            
+            # FIXED: Get model info from agent_info section
+            agent_info = result.get("agent_info", {})
+            model_used = agent_info.get("model_name", test_results.get("model_info", "unknown"))
+            
+            logging.info(f"✅ Agent {agent_id} responded successfully. Tokens: {tokens_used}, Time: {processing_time}s")
+            
+            # Add the AI response as a message with metadata
             await self.add_message_to_conversation(
                 db=db,
                 conversation_id=conversation_id,
-                content=response,
+                content=ai_response,
                 sender_type="agent",
-                agent_id=agent_id
+                agent_id=agent_id,
+                tokens_used=tokens_used,
+                processing_time=int(processing_time * 1000),  # Store as milliseconds
+                model_used=model_used
             )
             
             return {
-                "response": response,
+                "response": ai_response,
                 "agent_id": agent_id,
-                "processing_time": 1.2,
-                "tokens_used": len(message.split()) + len(response.split()),
+                "processing_time": processing_time,
+                "tokens_used": tokens_used,
+                "model_used": model_used,
                 "status": "success"
             }
             
+        except ImportError as e:
+            logging.error(f"Failed to import AgentService: {e}")
+            return {
+                "response": "AI service is temporarily unavailable. Please try again later.",
+                "status": "error",
+                "error": "AgentService import failed"
+            }
         except Exception as e:
             logging.error(f"Error generating AI response: {e}")
             return {

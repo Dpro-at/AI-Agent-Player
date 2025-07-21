@@ -57,6 +57,7 @@ class AgentCreateRequest(AgentBase):
     api_key: Optional[str] = None
     api_endpoint: Optional[str] = None
     agent_type: str = Field(default="main")
+    parent_agent_id: Optional[int] = None  # ✅ ADDED: Missing field for child agents
     tags: Optional[List[str]] = None
     category: Optional[str] = None
     is_public: bool = False

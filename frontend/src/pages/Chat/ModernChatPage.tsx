@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { chatService, agentsService } from '../../services';
@@ -193,6 +193,11 @@ const ModernChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [backendError, setBackendError] = useState(false);
   
+  // NEW: AI Typing States for ChatGPT-like experience
+  const [aiTyping, setAiTyping] = useState(false);
+  const [currentTypingText, setCurrentTypingText] = useState('');
+  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
+  
   // Voice Chat States
   const [isListening, setIsListening] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -211,6 +216,29 @@ const ModernChatPage: React.FC = () => {
     loadAgents();
   }, []);
   
+  // NEW: Handle chatId from URL for unique chat links
+  useEffect(() => {
+    if (chatId) {
+      console.log('🔗 ModernChatPage: URL contains chatId:', chatId);
+      // Check if this conversation is already loaded
+      const existingConv = conversations.find(c => c.id === chatId);
+      if (existingConv && currentConversation?.id !== chatId) {
+        console.log('🔗 ModernChatPage: Setting conversation from URL:', existingConv);
+        setCurrentConversation(existingConv);
+      } else if (!existingConv && conversations.length > 0) {
+        console.log('⚠️ ModernChatPage: Conversation ID from URL not found, using first available');
+        setCurrentConversation(conversations[0]);
+        // Update URL to reflect actual conversation
+        navigate(`/dashboard/chat/${conversations[0].id}`, { replace: true });
+      }
+    } else if (!chatId && conversations.length > 0 && !currentConversation) {
+      console.log('🔗 ModernChatPage: No chatId in URL, setting first conversation and updating URL');
+      setCurrentConversation(conversations[0]);
+      // Update URL to include conversation ID
+      navigate(`/dashboard/chat/${conversations[0].id}`, { replace: true });
+    }
+  }, [chatId, conversations, currentConversation, navigate]);
+  
   useEffect(() => {
     if (currentConversation) {
       loadMessages(currentConversation.id);
@@ -228,23 +256,99 @@ const ModernChatPage: React.FC = () => {
     }
   }, [messageInput]);
   
+  // NEW: Select conversation and update URL
+  const selectConversation = (conversation: SimpleConversation) => {
+    setCurrentConversation(conversation);
+    navigate(`/dashboard/chat/${conversation.id}`, { replace: true });
+    console.log('🔗 ModernChatPage: Selected conversation and updated URL:', conversation.id);
+  };
+  
+  // NEW: Typing Effect Function (ChatGPT-style)
+  const simulateTyping = useCallback((text: string, messageId: string, speed: number = 30) => {
+    setAiTyping(true);
+    setCurrentTypingText('');
+    
+    let currentIndex = 0;
+    const typingInterval = setInterval(() => {
+      if (currentIndex <= text.length) {
+        const currentText = text.slice(0, currentIndex);
+        setCurrentTypingText(currentText);
+        
+        // Update the actual message in the state
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: currentText + (currentIndex < text.length ? '│' : '') }
+            : msg
+        ));
+        
+        currentIndex++;
+      } else {
+        // Typing finished
+        setAiTyping(false);
+        setCurrentTypingText('');
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: text }
+            : msg
+        ));
+        clearInterval(typingInterval);
+      }
+    }, speed);
+    
+    return () => clearInterval(typingInterval);
+  }, []);
+  
   // Load conversations with fallback
   const loadConversations = async () => {
     try {
       setLoading(true);
+      console.log('💬 ModernChatPage: Loading conversations...');
+      
       const response = await chatService.getConversations();
-      if (response.conversations) {
-        const convs = response.conversations.map((c: any) => ({
+      console.log('💬 ModernChatPage: Raw conversations response:', response);
+      
+      // ✅ FIXED: Check correct response structure
+      let conversationsData = [];
+      if (response && response.data && response.data.conversations) {
+        conversationsData = response.data.conversations;
+      } else if (response && Array.isArray(response)) {
+        conversationsData = response;
+      } else if (response && response.conversations) {
+        conversationsData = response.conversations;
+      }
+      
+      console.log('💬 ModernChatPage: Extracted conversations:', conversationsData);
+      
+      if (conversationsData.length > 0) {
+        const convs = conversationsData.map((c: any) => ({
           id: c.id,
           title: c.title,
           updated_at: c.updated_at,
           is_pinned: c.is_pinned || false
         }));
+        
         setConversations(convs);
         setBackendError(false);
+        
+        // Auto-select first conversation if none selected
+        if (!currentConversation && convs.length > 0) {
+          setCurrentConversation(convs[0]);
+          console.log('💬 ModernChatPage: Auto-selected conversation:', convs[0]);
+        }
+        
+        console.log('✅ ModernChatPage: Conversations loaded successfully');
+      } else {
+        console.log('⚠️ ModernChatPage: No conversations found, using mock data');
+        setConversations(mockConversations);
+        setBackendError(false); // Not an error, just empty
+        
+        // Auto-select first mock conversation
+        if (mockConversations.length > 0) {
+          setCurrentConversation(mockConversations[0]);
+        }
       }
     } catch (error) {
-      console.warn('Backend not available, using mock data');
+      console.error('❌ ModernChatPage: Error loading conversations:', error);
       setConversations(mockConversations);
       setBackendError(true);
       
@@ -260,24 +364,74 @@ const ModernChatPage: React.FC = () => {
   // Load agents with fallback
   const loadAgents = async () => {
     try {
+      console.log('🤖 ModernChatPage: Loading agents...');
       const response = await agentsService.getAgents();
-      if (response.agents) {
-        const agentsList = response.agents.map((a: any) => ({
+      console.log('🤖 ModernChatPage: Raw response:', response);
+      
+      // ✅ FIXED: Correct response structure is response (not response.agents)
+      if (response && Array.isArray(response)) {
+        const agentsList = response.map((a: any) => ({
           id: a.id,
           name: a.name,
           model_provider: a.model_provider,
-          model_name: a.model_name
+          model_name: a.model_name,
+          is_active: a.is_active
         }));
+        
+        console.log('🤖 ModernChatPage: Processed agents:', agentsList);
         setAgents(agentsList);
+        
         if (agentsList.length > 0) {
-          setSelectedAgent(agentsList[0]);
+          // NEW: Try to find qwen2.5vl:7b model first as default
+          const preferredAgent = agentsList.find(agent => 
+            agent.model_name === 'qwen2.5vl:7b' || 
+            agent.model_name === 'qwen2.5-vl:7b' ||
+            agent.name.toLowerCase().includes('qwen') ||
+            agent.model_name.toLowerCase().includes('qwen')
+          );
+          
+          const defaultAgent = preferredAgent || agentsList[0];
+          setSelectedAgent(defaultAgent);
+          
+          if (preferredAgent) {
+            console.log('🎯 ModernChatPage: Found and selected preferred qwen model:', defaultAgent);
+          } else {
+            console.log('⚠️ ModernChatPage: qwen2.5vl:7b not found, using first agent:', defaultAgent);
+          }
+        }
+      } else {
+        console.warn('🤖 ModernChatPage: Invalid response format:', response);
+        setAgents(mockAgents);
+        if (mockAgents.length > 0) {
+          // NEW: Apply same qwen preference logic to mock agents
+          const preferredMockAgent = mockAgents.find(agent => 
+            agent.model_name === 'qwen2.5vl:7b' || 
+            agent.model_name === 'qwen2.5-vl:7b' ||
+            agent.name.toLowerCase().includes('qwen') ||
+            agent.model_name.toLowerCase().includes('qwen')
+          );
+          
+          const defaultMockAgent = preferredMockAgent || mockAgents[0];
+          setSelectedAgent(defaultMockAgent);
+          console.log('🎯 ModernChatPage: Using mock agent with qwen preference:', defaultMockAgent);
         }
       }
     } catch (error) {
+      console.error('🤖 ModernChatPage: Error loading agents:', error);
       console.warn('Backend not available, using mock agents');
       setAgents(mockAgents);
       if (mockAgents.length > 0) {
-        setSelectedAgent(mockAgents[0]);
+        // NEW: Apply same qwen preference logic to error case
+        const preferredErrorAgent = mockAgents.find(agent => 
+          agent.model_name === 'qwen2.5vl:7b' || 
+          agent.model_name === 'qwen2.5-vl:7b' ||
+          agent.name.toLowerCase().includes('qwen') ||
+          agent.model_name.toLowerCase().includes('qwen')
+        );
+        
+        const defaultErrorAgent = preferredErrorAgent || mockAgents[0];
+        setSelectedAgent(defaultErrorAgent);
+        console.log('🎯 ModernChatPage: Error case - using agent with qwen preference:', defaultErrorAgent);
       }
     }
   };
@@ -309,26 +463,89 @@ const ModernChatPage: React.FC = () => {
   
   // Create conversation
   const createConversation = async () => {
-    const newConv: SimpleConversation = {
-      id: Date.now().toString(),
-      title: 'New Chat',
-      updated_at: new Date().toISOString(),
-      is_pinned: false
-    };
-    
-    setConversations(prev => [newConv, ...prev]);
-    setCurrentConversation(newConv);
-    setMessages([{
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! How can I help you today?',
-      created_at: new Date().toISOString()
-    }]);
+    try {
+      if (!selectedAgent) {
+        alert('Please select an AI agent first!');
+        return;
+      }
+      
+      console.log('💬 ModernChatPage: Creating conversation with agent:', selectedAgent);
+      
+      // ✅ FIXED: Use real ChatService to create conversation
+      const response = await chatService.createConversation({
+        title: `Chat with ${selectedAgent.name}`,
+        agent_id: selectedAgent.id
+      });
+      
+      console.log('✅ ModernChatPage: Conversation created:', response);
+      console.log('🔍 ModernChatPage: Create conversation response debug:', JSON.stringify(response, null, 2));
+      
+      // ✅ FIXED: Handle correct response structure (response.data.data)
+      let responseData = null;
+      if (response.data && response.data.data) {
+        responseData = response.data.data; // Backend uses SuccessResponse wrapper
+      } else if (response.data) {
+        responseData = response.data;
+      } else if (response.success) {
+        responseData = response;
+      }
+      
+      console.log('🔍 ModernChatPage: Extracted conversation data:', responseData);
+      
+      if (responseData && (responseData.conversation_id || responseData.id)) {
+        const conversationId = responseData.conversation_id || responseData.id;
+        const newConv: SimpleConversation = {
+          id: conversationId.toString(),
+          title: responseData.title || `Chat with ${selectedAgent?.name}`,
+          updated_at: responseData.created_at || new Date().toISOString(),
+          is_pinned: false
+        };
+        
+        console.log('✅ ModernChatPage: Creating conversation object:', newConv);
+        
+        setConversations(prev => [newConv, ...prev]);
+        setCurrentConversation(newConv);
+        setMessages([]); // Start with empty messages
+        
+        // NEW: Navigate to unique chat URL
+        navigate(`/dashboard/chat/${conversationId}`, { replace: true });
+        
+        console.log('✅ ModernChatPage: Conversation created successfully with ID:', conversationId);
+        console.log('🔗 ModernChatPage: Navigated to URL: /dashboard/chat/' + conversationId);
+      } else {
+        console.log('❌ ModernChatPage: Could not extract conversation data. Available keys:', responseData ? Object.keys(responseData) : 'no data');
+        throw new Error('Invalid response format - no conversation ID found');
+      }
+      
+    } catch (error) {
+      console.error('❌ ModernChatPage: Error creating conversation:', error);
+      
+      // Fallback: Create mock conversation
+      const newConv: SimpleConversation = {
+        id: Date.now().toString(),
+        title: 'New Chat (Local)',
+        updated_at: new Date().toISOString(),
+        is_pinned: false
+      };
+      
+      setConversations(prev => [newConv, ...prev]);
+      setCurrentConversation(newConv);
+      setMessages([{
+        id: '1',
+        role: 'assistant',
+        content: `Hello! I'm ${selectedAgent?.name || 'your assistant'}. How can I help you today?`,
+        created_at: new Date().toISOString()
+      }]);
+    }
   };
   
   // Send message
   const sendMessage = async () => {
     if (!messageInput.trim() || !currentConversation) return;
+    if (!selectedAgent) {
+      alert('Please select an AI agent first!');
+      return;
+    }
     
     const userMessage: SimpleMessage = {
       id: Date.now().toString(),
@@ -338,20 +555,103 @@ const ModernChatPage: React.FC = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageText = messageInput.trim();
     setMessageInput('');
     
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: SimpleMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Thank you for your message: "${userMessage.content}". This is a simulated response since the backend is not available. The UI is working perfectly!`,
-        created_at: new Date().toISOString(),
-        tokens_used: 42,
-        processing_time: 0.8
-      };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    // NEW: Show AI thinking indicator
+    setIsGeneratingResponse(true);
+    const aiThinkingId = (Date.now() + 1).toString();
+    const aiThinkingMessage: SimpleMessage = {
+      id: aiThinkingId,
+      role: 'assistant',
+      content: '🤔 Thinking...',
+      created_at: new Date().toISOString(),
+      tokens_used: 0,
+      processing_time: 0
+    };
+    setMessages(prev => [...prev, aiThinkingMessage]);
+    
+    try {
+      console.log('🚀 ModernChatPage: Sending message with agent:', selectedAgent);
+      
+      // ✅ FIXED: Use real ChatService with selected agent
+      const response = await chatService.sendMessage(currentConversation.id, {
+        content: messageText,
+        sender_type: 'user',
+        agent_id: selectedAgent.id  // 🎯 ADD: Send agent_id to backend
+      });
+      
+      console.log('✅ ModernChatPage: Message sent successfully:', response);
+      console.log('🔍 ModernChatPage: Response structure debug:', JSON.stringify(response, null, 2));
+      
+      // ✅ FIXED: Handle correct response structure (response.data.data.ai_response)
+      let responseData = null;
+      if (response.data && response.data.data) {
+        responseData = response.data.data; // Backend uses SuccessResponse wrapper
+      } else if (response.data) {
+        responseData = response.data;
+      } else if (response.success) {
+        responseData = response;
+      }
+      
+      console.log('🔍 ModernChatPage: Extracted response data:', responseData);
+      
+      if (responseData) {
+        // NEW: Add AI response with typing effect
+        if (responseData.ai_response && responseData.ai_response.content) {
+          const finalResponseId = aiThinkingId; // Use same ID as thinking message
+          const aiResponseContent = responseData.ai_response.content;
+          
+          console.log('🤖 ModernChatPage: Starting typing effect for response:', aiResponseContent.substring(0, 50) + '...');
+          
+          // Remove thinking indicator and show typing effect
+          setIsGeneratingResponse(false);
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiThinkingId 
+              ? {
+                  ...msg,
+                  content: '', // Start with empty content for typing
+                  tokens_used: responseData.ai_response.tokens_used || 0,
+                  processing_time: responseData.ai_response.processing_time || 0
+                }
+              : msg
+          ));
+          
+          // Start typing effect
+          simulateTyping(aiResponseContent, finalResponseId, 25); // 25ms per character = fast typing
+          
+          console.log('🤖 ModernChatPage: AI response typing started');
+        } else {
+          // Remove thinking indicator and show error
+          setIsGeneratingResponse(false);
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiThinkingId 
+              ? { ...msg, content: "I'm sorry, I couldn't generate a response. Please try again." }
+              : msg
+          ));
+          console.log('⚠️ ModernChatPage: No AI response in data. Available keys:', Object.keys(responseData));
+        }
+      } else {
+        console.log('❌ ModernChatPage: Could not extract response data');
+        throw new Error('Invalid response format - no data found');
+      }
+      
+    } catch (error) {
+      console.error('❌ ModernChatPage: Error sending message:', error);
+      
+      // NEW: Show error with typing effect
+      setIsGeneratingResponse(false);
+      const errorContent = `I'm sorry, I'm having trouble responding right now. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please make sure you've selected a working agent.`;
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiThinkingId 
+          ? { ...msg, content: '', tokens_used: 0, processing_time: 0 }
+          : msg
+      ));
+      
+      // Show error with typing effect
+      simulateTyping(errorContent, aiThinkingId, 15); // Faster typing for errors
+    }
   };
   
   // Delete conversation
@@ -485,7 +785,7 @@ const ModernChatPage: React.FC = () => {
           {sortedConversations.map((conv) => (
             <div
               key={conv.id}
-              onClick={() => setCurrentConversation(conv)}
+              onClick={() => selectConversation(conv)}
               className={`conversation-item ${currentConversation?.id === conv.id ? 'active' : ''}`}
             >
               <div className="conversation-content">

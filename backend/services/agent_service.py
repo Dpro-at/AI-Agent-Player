@@ -296,7 +296,7 @@ class AgentService:
                     }
             
             # For Ollama local models
-            elif agent.get("model_provider") == "ollama":
+            elif model_provider == "ollama":
                 logging.warning(f"🦙🔥 OLLAMA SECTION ENTERED! - Agent ID: {agent.get('id')}, Name: {agent.get('name')}")
                 logging.warning(f"🦙🔥 Provider: '{agent.get('model_provider')}', Model: '{agent.get('model_name')}'")
                 logging.warning(f"🦙🔥 Endpoint: '{agent.get('api_endpoint')}'")

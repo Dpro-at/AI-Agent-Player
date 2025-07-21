@@ -132,7 +132,7 @@ export const APITestingConsole: React.FC = () => {
       const token = localStorage.getItem('access_token');
       console.log('🔄 Creating test conversation for UUID...');
       
-      const response = await fetch('/api/chat/conversations', {
+      const response = await fetch('/chat/conversations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -251,10 +251,14 @@ export const APITestingConsole: React.FC = () => {
       let conversationId = 1; // Default conversation ID
       
       // NEW: Handle UUID-based endpoints
+      console.log(`🔍 Checking URL: ${requestUrl} for UUID replacement`);
       if (requestUrl.includes('/chat/c/test-uuid-12345')) {
+        console.log(`🔄 UUID replacement needed for: ${requestUrl}`);
         const realUUID = await getTestUUID(endpoint);
         requestUrl = requestUrl.replace('test-uuid-12345', realUUID);
         console.log(`🆔 Using real UUID: ${realUUID} for ${endpoint.method} ${requestUrl}`);
+      } else {
+        console.log(`ℹ️ No UUID replacement needed for: ${requestUrl}`);
       }
       
       // For endpoints that need an existing conversation, get or create one
@@ -262,7 +266,7 @@ export const APITestingConsole: React.FC = () => {
         // Try to get existing conversations first
         if (endpoint.method !== 'POST' || endpoint.path.includes('messages')) {
           try {
-            const conversationsResponse = await fetch('http://localhost:8000/chat/conversations', {
+            const conversationsResponse = await fetch('/chat/conversations', {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -276,7 +280,7 @@ export const APITestingConsole: React.FC = () => {
               } else {
                 // Create a new conversation if none exist
                 console.log(`🔧 No conversations found, creating new one...`);
-                const createResponse = await fetch('http://localhost:8000/chat/conversations', {
+                const createResponse = await fetch('/chat/conversations', {
                   method: 'POST',
                   headers,
                   body: JSON.stringify({ 

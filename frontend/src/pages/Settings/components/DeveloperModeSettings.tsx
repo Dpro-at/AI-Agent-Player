@@ -34,6 +34,9 @@ const DeveloperModeSettings: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<string>('All');
   const [selectedOperation, setSelectedOperation] = useState<string>('All');
 
+  // NEW: Smart UUID management for Chat UUID APIs
+  const [conversationUUIDs, setConversationUUIDs] = useState<{[key: string]: string}>({});
+
   // State for advanced developer tools
   const [errorLogs, setErrorLogs] = useState<string[]>([]);
   const [cacheInfo, setCacheInfo] = useState<{
@@ -166,6 +169,62 @@ const DeveloperModeSettings: React.FC = () => {
     { name: 'Form Builder', endpoint: '/formbuilder', method: 'GET', category: 'Business', subcategory: 'Tools', operation: 'Read', status: '✅ Working' }
   ];
 
+  // NEW: Get or create real UUID for testing Chat UUID APIs
+  const getTestUUID = async (): Promise<string> => {
+    // If we already have a UUID for this test session, use it
+    if (conversationUUIDs['test-session']) {
+      console.log(`🆔 Using existing UUID: ${conversationUUIDs['test-session']}`);
+      return conversationUUIDs['test-session'];
+    }
+
+    // Create a new conversation to get a real UUID
+    try {
+      const token = localStorage.getItem('access_token');
+      console.log('🔄 Creating test conversation for UUID...');
+      
+      const response = await fetch(`${config.api.baseURL}/chat/conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: `Test Conversation for UUID APIs ${new Date().toLocaleTimeString()}`,
+          agent_id: 1
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📋 Create conversation response:', data);
+        
+        // FIXED: Use conversation_uuid instead of uuid
+        const uuid = data.data?.conversation_uuid;
+        if (uuid) {
+          // Store UUID for future tests
+          setConversationUUIDs(prev => ({
+            ...prev,
+            'test-session': uuid
+          }));
+          console.log(`🆔 Created test conversation with UUID: ${uuid}`);
+          return uuid;
+        } else {
+          console.warn('⚠️ No conversation_uuid in response:', data);
+        }
+      } else {
+        console.warn(`⚠️ Failed to create conversation: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.warn('Error response:', errorText);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to create test conversation, using dummy UUID:', error);
+    }
+
+    // Fallback to dummy UUID
+    console.log('⚠️ Using fallback dummy UUID');
+    return 'test-uuid-12345';
+  };
+
   // Test API function
   const testApi = async (api: typeof workingApis[0]) => {
     const apiKey = `${api.method}_${api.endpoint}`;
@@ -246,6 +305,17 @@ const DeveloperModeSettings: React.FC = () => {
             email: "me@alarade.at",
             password: "admin123456"
           });
+        } else if (api.endpoint.includes('/chat/c/') && api.endpoint.includes('/messages') && api.method === 'POST') {
+          // POST /chat/c/{uuid}/messages
+          body = JSON.stringify({
+            content: `Test message via UUID sent at ${new Date().toLocaleTimeString()}`,
+            sender_type: "user"
+          });
+        } else if (api.endpoint.includes('/chat/c/') && api.method === 'PUT') {
+          // PUT /chat/c/{uuid}
+          body = JSON.stringify({
+            title: `Updated UUID Conversation ${new Date().toLocaleTimeString()}`
+          });
         }
       }
 
@@ -256,7 +326,16 @@ const DeveloperModeSettings: React.FC = () => {
       }
       console.log(`🔧 Request headers:`, headers);
       
-      const response = await fetch(`${config.api.baseURL}${api.endpoint}`, {
+      // NEW: Handle UUID-based endpoints - Replace test-uuid-12345 with real UUID
+      let requestEndpoint = api.endpoint;
+      if (requestEndpoint.includes('test-uuid-12345')) {
+        console.log(`🔄 UUID replacement needed for: ${requestEndpoint}`);
+        const realUUID = await getTestUUID();
+        requestEndpoint = requestEndpoint.replace('test-uuid-12345', realUUID);
+        console.log(`🆔 Using real UUID: ${realUUID} for ${api.method} ${requestEndpoint}`);
+      }
+      
+      const response = await fetch(`${config.api.baseURL}${requestEndpoint}`, {
         method: api.method,
         headers,
         body

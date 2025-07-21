@@ -13,6 +13,7 @@ from services.chat_service import ChatService
 from sqlalchemy import select, text
 from models.database import Base
 from config.database import async_engine  # FIXED: Import from config.database
+from datetime import datetime  # ADDED: For AI response timestamp
 
 # ADDED: Database initialization check
 async def ensure_database_tables():
@@ -60,6 +61,7 @@ class ConversationUpdateRequest(BaseModel):
 class MessageCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, description="Message content")
     sender_type: Optional[str] = Field("user", description="Sender type: user, agent, or system")
+    message_type: Optional[str] = Field("text", description="Message type: text, image, file, etc.")
     agent_id: Optional[int] = None
 
     class Config:
@@ -521,7 +523,7 @@ async def delete_conversation_by_uuid(
 # FIXED: Get messages endpoint
 @router.get("/conversations/{conversation_id}/messages", response_model=SuccessResponse)
 async def get_conversation_messages(
-    conversation_id: int,  # FIXED: Changed from str to int
+    conversation_id: str,  # FIXED: Changed to str to handle both int and string IDs
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=50, ge=1, le=100),
@@ -529,10 +531,16 @@ async def get_conversation_messages(
 ):
     """Get conversation messages with validation"""
     try:
+        # FIXED: Handle conversation_id conversion
+        try:
+            conv_id_int = int(conversation_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid conversation_id format: {conversation_id}")
+        
         # Check if conversation exists and user owns it
         conversation = await chat_service.get_conversation_by_id(
             db=db, 
-            conversation_id=conversation_id, 
+            conversation_id=str(conv_id_int), 
             user_id=current_user["user_id"]
         )
         
@@ -544,12 +552,12 @@ async def get_conversation_messages(
         
         messages = await chat_service.get_conversation_messages(
             db=db,
-            conversation_id=conversation_id,
+            conversation_id=str(conv_id_int),
             limit=limit,
             offset=offset
         )
         
-        total = await chat_service.get_conversation_messages_count(db=db, conversation_id=conversation_id)
+        total = await chat_service.get_conversation_messages_count(db=db, conversation_id=str(conv_id_int))
         
         return SuccessResponse(
             message=f"Found {len(messages)} messages",
@@ -565,39 +573,109 @@ async def get_conversation_messages(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching messages: {str(e)}")
 
-# FIXED: Add message to conversation with database check
+# FIXED: Add message to conversation with AUTO AI RESPONSE
 @router.post("/conversations/{conversation_id}/messages", response_model=SuccessResponse)
 async def add_message_to_conversation(
-    conversation_id: int,
+    conversation_id: str,  # FIXED: Change to str to handle both int and string IDs
     request: MessageCreateRequest,
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add message to conversation with enhanced error handling"""
+    """Add message to conversation with automatic AI response generation"""
     try:
         # Get user_id from authenticated user
         user_id = current_user["user_id"]
         
-        # Add message using service with enhanced error handling
-        result = await chat_service.add_message_to_conversation(
+        # FIXED: Handle conversation_id conversion
+        try:
+            # Convert string conversation_id to int for database operations
+            conv_id_int = int(conversation_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid conversation_id format: {conversation_id}")
+        
+        print(f"💬 Adding message to conversation {conv_id_int} with agent_id: {request.agent_id}")
+        
+        # Step 1: Add user message using service
+        user_message_result = await chat_service.add_message_to_conversation(
             db=db,
-            conversation_id=str(conversation_id),  # Keep as string for service compatibility
+            conversation_id=str(conv_id_int),  # Convert back to string for service
             content=request.content,
             sender_type=request.sender_type or "user",
-            agent_id=request.agent_id  # Re-added agent_id parameter
+            agent_id=request.agent_id
         )
         
+        print(f"✅ User message added: {user_message_result}")
+        
+        # Step 2: Generate AI response automatically (if agent_id provided)
+        ai_response_data = None
+        if request.agent_id and request.sender_type == "user":
+            try:
+                print(f"🤖 Generating AI response with agent_id: {request.agent_id}")
+                
+                # FIXED: Generate AI response using correct parameters
+                ai_response = await chat_service.generate_ai_response(
+                    db=db,
+                    conversation_id=str(conv_id_int),
+                    message=request.content,
+                    agent_id=request.agent_id,  # Pass agent_id directly
+                    include_context=True  # Include conversation context
+                )
+                
+                print(f"✅ AI response generated: {ai_response}")
+                
+                # FIXED: Process AI response for frontend
+                if ai_response and ai_response.get("status") == "success":
+                    ai_response_data = {
+                        "content": ai_response.get("response", "I apologize, but I couldn't generate a response."),
+                        "message_id": None,  # Will be set when saved to database
+                        "tokens_used": ai_response.get("tokens_used", 0),
+                        "processing_time": ai_response.get("processing_time", 0),
+                        "model_used": ai_response.get("model_used", "unknown"),
+                        "agent_id": ai_response.get("agent_id", request.agent_id),
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+                else:
+                    # If AI response failed, provide helpful error
+                    error_msg = ai_response.get("error", "Unknown error") if ai_response else "AI service unavailable"
+                    print(f"❌ AI Response failed: {error_msg}")
+                    ai_response_data = {
+                        "content": f"I'm sorry, I'm having trouble responding right now. Please try again or select a different agent. Error: {error_msg}",
+                        "message_id": None,
+                        "tokens_used": 0,
+                        "processing_time": 0,
+                        "model_used": "error",
+                        "agent_id": request.agent_id,
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+                
+            except Exception as ai_error:
+                print(f"⚠️ AI response generation failed: {ai_error}")
+                # Continue without AI response - don't fail the whole request
+                ai_response_data = {
+                    "content": f"I'm sorry, I'm having trouble responding right now. Error: {str(ai_error)}",
+                    "message_id": None,
+                    "tokens_used": 0,
+                    "processing_time": 0,
+                    "created_at": datetime.utcnow().isoformat()
+                }
+        
+        # Return both user message and AI response
         return SuccessResponse(
-            message="Message added successfully",
+            message="Message sent successfully",
             data={
-                "message_id": result["message_id"],
-                "conversation_id": conversation_id,
-                "content": request.content,
-                "sender_type": request.sender_type or "user",
-                "created_at": result["created_at"].isoformat() if hasattr(result.get("created_at"), "isoformat") else str(result.get("created_at"))
+                "success": True,
+                "user_message": {
+                    "message_id": user_message_result["message_id"],
+                    "conversation_id": conv_id_int,
+                    "content": request.content,
+                    "sender_type": request.sender_type or "user",
+                    "created_at": user_message_result["created_at"].isoformat() if hasattr(user_message_result.get("created_at"), "isoformat") else str(user_message_result.get("created_at"))
+                },
+                "ai_response": ai_response_data  # This will be None if no AI response generated
             }
         )
     except Exception as e:
+        print(f"❌ Error in add_message_to_conversation: {e}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error adding message: {str(e)}"
@@ -712,3 +790,50 @@ async def search_messages(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching messages: {str(e)}") 
+
+# NEW: Debug agent endpoint
+@router.get("/debug-agent/{agent_id}", response_model=SuccessResponse)
+async def debug_agent_data(
+    agent_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Debug endpoint to check agent data"""
+    try:
+        from services.agent_service import AgentService
+        agent_service = AgentService()
+        
+        # Get agent data
+        agent = await agent_service.get_agent_by_id(db, agent_id)
+        
+        if not agent:
+            return SuccessResponse(
+                message="Agent not found",
+                data={"error": f"Agent {agent_id} not found"}
+            )
+        
+        # Debug info
+        debug_info = {
+            "agent_data": agent,
+            "model_provider_exact": agent.get("model_provider"),
+            "model_provider_lower": agent.get("model_provider", "").lower(),
+            "api_endpoint": agent.get("api_endpoint"),
+            "is_ollama": agent.get("model_provider", "").lower() == "ollama",
+            "checks": {
+                "has_model_provider": "model_provider" in agent,
+                "model_provider_value": agent.get("model_provider"),
+                "model_name": agent.get("model_name"),
+                "api_endpoint_value": agent.get("api_endpoint")
+            }
+        }
+        
+        return SuccessResponse(
+            message=f"Debug info for agent {agent_id}",
+            data=debug_info
+        )
+        
+    except Exception as e:
+        return SuccessResponse(
+            message="Debug error",
+            data={"error": str(e)}
+        )
