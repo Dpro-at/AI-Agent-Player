@@ -18,14 +18,25 @@ This directory contains all backend code for the DPRO AI Agent Player system.
 
 ## How to Run Backend
 
-1. Install dependencies:
+1. Change to the backend directory:
    ```bash
    pip install -r requirements.txt
    ```
 2. Run the FastAPI server:
    ```bash
-   uvicorn main:app --reload
+   ./env/scripts/activate
+
+   or 
+
+   .\.venv\Scripts\Activate.ps1
+   
    ```
+3. Run the FastAPI server:
+   ```bash
+   python main.py
+   ```
+
+   
 3. API docs available at: `http://localhost:8000/docs`
 
 ## Rules & Conventions

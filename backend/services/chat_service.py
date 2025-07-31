@@ -264,21 +264,34 @@ class ChatService:
     ) -> Dict[str, Any]:
         """Add message to conversation - updated for new schema"""
         try:
-            # Convert conversation_id to int with proper error handling
-            try:
-                conv_id = int(conversation_id)
-            except (ValueError, TypeError) as e:
-                self.logger.error(f"Invalid conversation_id: {conversation_id}")
-                raise Exception(f"Invalid conversation ID: {conversation_id}")
+            # Handle both UUID and integer conversation IDs
+            conversation = None
             
-            # Verify conversation exists
-            query = select(Conversation).where(Conversation.id == conv_id)
-            result = await db.execute(query)
-            conversation = result.scalar_one_or_none()
+            # Try to find conversation by UUID first (for Board chat)
+            if isinstance(conversation_id, str) and len(conversation_id) == 36:
+                query = select(Conversation).where(Conversation.uuid == conversation_id)
+                result = await db.execute(query)
+                conversation = result.scalar_one_or_none()
+                self.logger.info(f"Looking for conversation by UUID: {conversation_id}")
+            
+            # If not found by UUID, try by integer ID (for regular chat)
+            if not conversation:
+                try:
+                    conv_id = int(conversation_id)
+                    query = select(Conversation).where(Conversation.id == conv_id)
+                    result = await db.execute(query)
+                    conversation = result.scalar_one_or_none()
+                    self.logger.info(f"Looking for conversation by ID: {conv_id}")
+                except (ValueError, TypeError):
+                    self.logger.error(f"Invalid conversation_id format: {conversation_id}")
+                    raise Exception(f"Invalid conversation ID format: {conversation_id}")
             
             if not conversation:
-                self.logger.error(f"Conversation {conv_id} not found")
-                raise Exception(f"Conversation {conv_id} not found")
+                self.logger.error(f"Conversation {conversation_id} not found")
+                raise Exception(f"Conversation {conversation_id} not found")
+            
+            # Use the actual conversation ID from database
+            conv_id = conversation.id
             
             # Create message with all required fields
             message = Message(
@@ -325,6 +338,10 @@ class ChatService:
             error_msg = f"Failed to add message: {str(e)}"
             self.logger.error(f"Error in add_message_to_conversation: {error_msg}")
             self.logger.error(f"  Input: conversation_id={conversation_id}, content='{content[:50]}...', sender={sender_type}")
+            self.logger.error(f"  Exception type: {type(e).__name__}")
+            self.logger.error(f"  Exception details: {str(e)}")
+            import traceback
+            self.logger.error(f"  Traceback: {traceback.format_exc()}")
             raise Exception(error_msg)
     
     async def generate_ai_response(
@@ -561,6 +578,7 @@ class ChatService:
             
         return {
             "id": conversation.id,
+            "uuid": conversation.uuid,  # FIX: Add missing UUID field
             "title": conversation.title,
             "user_id": conversation.user_id,
             "agent_id": conversation.agent_id,

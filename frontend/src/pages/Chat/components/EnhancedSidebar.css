@@ -1,0 +1,524 @@
+/* ============================================================================
+   🎨 ENHANCED SIDEBAR - CLEAN & ORGANIZED DESIGN
+   Simplified and perfectly organized sidebar with consistent spacing
+   ============================================================================ */
+
+.enhanced-sidebar {
+  width: 320px;
+  height: 100vh;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================================
+   📋 SIDEBAR HEADER - CLEAN & CONSISTENT
+   ============================================================================ */
+
+.sidebar-header {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.sidebar-title {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.new-conversation-btn,
+.new-chat-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.new-conversation-btn:hover,
+.new-chat-button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.new-chat-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-chat-icon {
+  font-size: 16px;
+}
+
+.new-chat-text {
+  font-weight: 600;
+}
+
+/* ============================================================================
+   🔍 SEARCH BAR - CLEAN & SIMPLE
+   ============================================================================ */
+
+.search-container {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: all 0.2s ease;
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--accent);
+  background: var(--bg-primary);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  margin-left: 8px;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+.search-clear:hover {
+  color: var(--error);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 8px;
+  z-index: 10;
+}
+
+.search-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.search-suggestion-item:hover {
+  background: var(--bg-secondary);
+}
+
+/* ============================================================================
+   📁 CONVERSATIONS LIST - CLEAN & ORGANIZED
+   ============================================================================ */
+
+.conversations-container {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+.conversations-list {
+  padding: 8px 0;
+}
+
+.conversations-section {
+  padding: 0;
+}
+
+.section-header {
+  padding: 12px 16px 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  background: var(--bg-primary);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.section-header .count {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.pinned-section {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+}
+
+.pinned-conversations {
+  padding: 0 8px;
+}
+
+/* Date Group Headers - SIMPLE */
+.date-group {
+  margin-bottom: 16px;
+}
+
+.date-header {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* Conversation Items - CLEAN DESIGN */
+.conversation-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  position: relative;
+  background: var(--bg-primary);
+  min-height: 60px;
+}
+
+.conversation-item:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+
+.conversation-item.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.conversation-item.pinned {
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent);
+}
+
+/* Conversation Icon - SIMPLE */
+.conversation-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.conversation-item.active .conversation-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.conversation-item:hover .conversation-icon {
+  background: var(--bg-tertiary);
+}
+
+/* Conversation Content - CLEAN */
+.conversation-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.conversation-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.conversation-item.active .conversation-title {
+  color: white;
+  font-weight: 600;
+}
+
+.conversation-preview,
+.conversation-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  font-weight: 400;
+  margin: 0;
+}
+
+.conversation-item.active .conversation-preview,
+.conversation-item.active .conversation-meta {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Conversation Actions */
+.conversation-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  opacity: 0;
+}
+
+.conversation-item:hover .action-button {
+  opacity: 1;
+}
+
+.action-button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.conversation-item.active .action-button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.conversation-item.active .action-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.conversation-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: right;
+}
+
+.conversation-item.active .conversation-time {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Scrollbar Styling */
+.conversations-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversations-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversations-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.conversations-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .enhanced-sidebar {
+    width: 280px;
+  }
+  
+  .sidebar-header {
+    padding: 12px;
+  }
+  
+  .search-container {
+    padding: 12px;
+  }
+  
+  .conversation-item {
+    padding: 10px 12px;
+    margin: 2px 6px;
+    min-height: 55px;
+  }
+  
+  .conversation-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .conversation-title {
+    font-size: 13px;
+  }
+  
+  .conversation-preview,
+  .conversation-meta {
+    font-size: 11px;
+  }
+}
+
+/* Loading States */
+.loading-conversations {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.loading-skeleton {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  height: 60px;
+  margin: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Empty States */
+.empty-conversations {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-conversations h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-conversations p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.context-menu-item.danger {
+  color: var(--error);
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* End of Enhanced Sidebar CSS */

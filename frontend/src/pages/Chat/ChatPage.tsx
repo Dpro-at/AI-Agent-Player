@@ -1,136 +1,86 @@
 /**
- * Chat Page - Modern OpenAI-like Chat Interface
- * Features: Conversations sidebar, model selection, chat interface, settings
+ * ===============================
+ * 🚀 CHAT PAGE - MAIN CONTAINER
+ * ===============================
+ * 
+ * This is the main chat interface container that orchestrates all chat components.
+ * Updated for enhanced message system and file upload integration.
+ * 
+ * ===============================
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom'; // NEW: Added routing hooks
-import { ConversationsSidebar } from './components/ConversationsSidebar';
-import { ChatInterface } from './components/ChatInterface';
-import { ModelSelector } from './components/ModelSelector';
-import { ChatSettings } from './components/ChatSettings';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { chatService, agentsService } from '../../services';
+import chatService from '../../services/chat';
+import agentsService from '../../services/agents';
+import { 
+  EnhancedConversationsSidebar, 
+  MessageList, 
+  ChatInput, 
+  ChatHeader
+} from './components';
+import { AdvancedSettingsModal } from './components/AdvancedSettingsModal';
+import type { UploadedFile } from './components/FileUpload';
+import type { Conversation, Message, LegacyMessage, Agent, TextContent } from './types';
+import { convertLegacyMessage } from './types';
 import './ChatPage.css';
+import './components/EnhancedSidebar.css';
 
-// Import icons
-import {
-  Send, Paperclip, Image, Bot, Settings, Plus, Search, Pin, Trash2, Edit3,
-  Menu, X, Copy, ThumbsUp, ThumbsDown, Zap, File, Download, Mic, Volume2,
-  Eye, Moon, Sun, Monitor, Languages, Bell, Save, RotateCcw, Upload,
-  Sliders, Globe, Shield, Database, Lock, AlertTriangle, FileText,
-  MessageSquare, Archive, MoreVertical, Smile, Calendar, Clock,
-  Users, Code, Terminal, Folder, Link, Bookmark, Star, Heart,
-  RefreshCw, Filter, SortDesc, CheckCircle, Circle, Pause, Play
-} from 'lucide-react';
+// Mock data for fallback
+const mockConversations: Conversation[] = [
+  {
+    id: '1',
+    title: 'General Chat',
+    updated_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    is_pinned: false,
+    is_active: true,
+    user_id: 1,
+    message_count: 0,
+    agent_name: 'General Assistant'
+  },
+  {
+    id: '2',
+    title: 'Project Planning Discussion',
+    updated_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    created_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+    is_pinned: true,
+    is_active: true,
+    user_id: 1,
+    message_count: 12,
+    agent_name: 'Planning Assistant',
+    last_message_at: new Date(Date.now() - 172800000).toISOString()
+  },
+  {
+    id: '3',
+    title: 'Technical Questions',
+    updated_at: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
+    created_at: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
+    is_pinned: false,
+    is_active: true,
+    user_id: 1,
+    message_count: 7,
+    agent_name: 'Tech Support',
+    last_message_at: new Date(Date.now() - 345600000).toISOString()
+  }
+];
 
-// Enhanced Types
-interface Agent {
-  id: number;
-  name: string;
-  description?: string;
-  model_provider: string;
-  model_name: string;
-  temperature: number;
-  max_tokens: number;
-  is_active: boolean;
-  avatar_url?: string;
-}
+const mockAgents: Agent[] = [
+  {
+    id: 1,
+    name: 'General Assistant',
+    model_provider: 'openai',
+    model_name: 'gpt-4',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
 
-interface Conversation {
-  id: string;
-  title: string;
-  agent_id?: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  user_id: number;
-  is_pinned?: boolean;
-  last_message?: string;
-  message_count?: number;
-  tags?: string[];
-  folder?: string;
-  conversation_uuid?: string; // NEW: Add UUID to conversation
-  uuid?: string; // NEW: Add UUID to conversation
-}
-
-interface Message {
-  id: number;
-  conversation_id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
-  status?: 'sending' | 'sent' | 'error';
-  attachments?: FileAttachment[];
-  metadata?: {
-    tokens?: number;
-    response_time?: number;
-    confidence?: number;
-    model_used?: string;
-    cost?: number;
-  };
-}
-
-interface FileAttachment {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  url: string;
-  preview?: string;
-}
-
-interface MCPServer {
-  id: string;
-  name: string;
-  url: string;
-  status: 'connected' | 'disconnected' | 'error';
-  capabilities: string[];
-  description?: string;
-}
-
-interface ChatSettings {
-  // General
-  theme: 'light' | 'dark' | 'system';
-  language: string;
-  fontSize: 'small' | 'medium' | 'large';
-  soundEnabled: boolean;
-  notificationsEnabled: boolean;
-  autoSave: boolean;
-  
-  // AI Model
-  defaultAgent: number | null;
-  temperature: number;
-  maxTokens: number;
-  topP: number;
-  frequencyPenalty: number;
-  presencePenalty: number;
-  systemPrompt: string;
-  stopSequences: string[];
-  
-  // Advanced
-  streamResponses: boolean;
-  saveHistory: boolean;
-  enableAnalytics: boolean;
-  autoTranslate: boolean;
-  contentModeration: boolean;
-  maxConversations: number;
-  
-  // Privacy
-  shareData: boolean;
-  anonymousUsage: boolean;
-  encryptData: boolean;
-  autoDeleteAfter: number; // days
-  
-  // MCP Servers
-  mcpServers: MCPServer[];
-  enableMCP: boolean;
-}
-
-export const ChatPage: React.FC = () => {
-  const { chatId } = useParams();
+const ChatPage: React.FC = () => {
+  const { chatId, conversationUuid } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // NEW: For current location
   const { user } = useAuth();
   
   // Core State
@@ -138,1208 +88,577 @@ export const ChatPage: React.FC = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   
   // UI State
+  const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [showFileUpload, setShowFileUpload] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [backendError, setBackendError] = useState(false);
   
-  // Chat Settings
-  const [settings, setSettings] = useState<ChatSettings>({
-    theme: 'light',
-    language: 'en',
-    fontSize: 'medium',
-    soundEnabled: true,
-    notificationsEnabled: true,
-    autoSave: true,
-    defaultAgent: null,
-    temperature: 0.7,
-    maxTokens: 2048,
-    topP: 1.0,
-    frequencyPenalty: 0.0,
-    presencePenalty: 0.0,
-    systemPrompt: '',
-    stopSequences: [],
-    streamResponses: true,
-    saveHistory: true,
-    enableAnalytics: true,
-    autoTranslate: false,
-    contentModeration: true,
-    maxConversations: 100,
-    shareData: false,
-    anonymousUsage: true,
-    encryptData: true,
-    autoDeleteAfter: 90,
-    mcpServers: [],
-    enableMCP: false
-  });
+  // AI State
+  const [aiTyping, setAiTyping] = useState(false);
+  const [currentTypingText, setCurrentTypingText] = useState('');
+  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
   
-  // Refs
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Load data on component mount
+  // Voice State
+  const [isListening, setIsListening] = useState(false);
+
+  // File Upload State
+  const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
+
+  // Load initial data
   useEffect(() => {
     loadConversations();
     loadAgents();
-    loadSettings();
-  }, [loadConversations, loadAgents]);
-  
-  // Auto-scroll to bottom when new messages arrive
+  }, []);
+
+  // Handle URL parameters
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-  
-  // Load conversation messages when conversation changes
-  useEffect(() => {
-    if (currentConversation) {
-      loadMessages(currentConversation.id);
+    if (conversationUuid && conversations.length > 0) {
+      const conversation = conversations.find(c => c.uuid === conversationUuid);
+      if (conversation) {
+        selectConversation(conversation);
+      }
+    } else if (chatId && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === chatId);
+      if (conversation) {
+        selectConversation(conversation);
+      }
     }
-  }, [currentConversation]);
-  
-  // Set default agent when agents load
-  useEffect(() => {
-    if (agents.length > 0 && !selectedAgent) {
-      setSelectedAgent(agents[0]);
-    }
-  }, [agents, selectedAgent]);
-  
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [messageInput]);
-  
+  }, [chatId, conversationUuid, conversations]);
+
   // Load conversations
-  const loadConversations = useCallback(async () => {
+  const loadConversations = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading conversations...');
       const response = await chatService.getConversations();
-      setConversations(response.conversations || []);
+      console.log('📊 Conversations response:', response);
       
-      // Load specific conversation if chatId provided
-      if (chatId && response.conversations) {
-        const conversation = response.conversations.find((c: Conversation) => c.id === chatId);
-        if (conversation) {
-          setCurrentConversation(conversation);
+      // Handle AxiosResponse - data is in response.data
+      let conversationsData = [];
+      
+      if (response.data) {
+        // Try different possible data structures from backend
+        if (response.data.success && response.data.data?.conversations) {
+          conversationsData = response.data.data.conversations;
+        } else if (response.data.conversations) {
+          conversationsData = response.data.conversations;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          conversationsData = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          conversationsData = response.data;
         }
       }
+      
+      console.log('✅ Conversations data:', conversationsData);
+      
+      if (conversationsData.length > 0) {
+        const convs = conversationsData.map((c: any) => ({
+          id: String(c.id),
+          title: c.title || 'Untitled Conversation',
+          updated_at: c.updated_at || new Date().toISOString(),
+          created_at: c.created_at || new Date().toISOString(),
+          is_pinned: c.is_pinned || false,
+          is_active: c.is_active !== false,
+          user_id: c.user_id || 1,
+          uuid: c.uuid || c.conversation_uuid, // Handle both field names
+          agent_id: c.agent_id
+        }));
+        
+        setConversations(convs);
+        setBackendError(false);
+        console.log('✅ Conversations loaded successfully:', convs.length);
+      } else {
+        console.warn('⚠️ No conversations found, using mock data');
+        setConversations(mockConversations);
+        setBackendError(true);
+      }
     } catch (error) {
-      console.error('Error loading conversations:', error);
-      setError('Failed to load conversations');
+      console.error('❌ Failed to load conversations:', error);
+      setConversations(mockConversations);
+      setBackendError(true);
     } finally {
       setLoading(false);
     }
-  }, [chatId]);
-  
+  };
+
   // Load agents
-  const loadAgents = useCallback(async () => {
+  const loadAgents = async () => {
     try {
+      console.log('🔄 Loading agents...');
       const response = await agentsService.getAgents();
-      console.log('🤖 Agents loaded:', response);
-      setAgents(Array.isArray(response) ? response : []);
+      console.log('🤖 Agents response:', response);
+      
+      const agentsList = response.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        model_provider: a.model_provider,
+        model_name: a.model_name,
+        is_active: a.is_active !== false,
+        created_at: a.created_at || new Date().toISOString(),
+        updated_at: a.updated_at || new Date().toISOString(),
+        description: a.description
+      }));
+      setAgents(agentsList);
+      
+      if (agentsList.length > 0 && !selectedAgent) {
+        setSelectedAgent(agentsList[0]);
+        console.log('✅ Selected default agent:', agentsList[0].name);
+      }
+      console.log('✅ Agents loaded successfully:', agentsList.length);
     } catch (error) {
-      console.error('Error loading agents:', error);
-      setAgents([]); // Set empty array on error
+      console.error('❌ Failed to load agents:', error);
+      setAgents(mockAgents);
+      setSelectedAgent(mockAgents[0]);
     }
-  }, []);
-  
-  // Load messages for a conversation
-  const loadMessages = async (conversationId: string) => {
+  };
+
+  // Load messages for conversation
+  const loadMessages = async (conversationId: string, conversationUuid?: string) => {
     try {
       setLoading(true);
-      const response = await chatService.getMessages(conversationId);
-      setMessages(response.messages || []);
+      console.log('🔄 Loading messages for conversation:', conversationId);
+      let response;
+      
+      // Only try UUID endpoint if we have a real UUID (not mock data)
+      if (conversationUuid && conversationUuid !== 'mock-uuid-1' && !conversationUuid.startsWith('mock-')) {
+        try {
+          response = await chatService.getMessagesByUuid(conversationUuid);
+        } catch (error) {
+          console.log('UUID endpoint failed, falling back to ID endpoint');
+          response = await chatService.getMessages(conversationId);
+        }
+      } else {
+        response = await chatService.getMessages(conversationId);
+      }
+      
+      console.log('📊 Messages response:', response);
+      
+      // Handle AxiosResponse - data is in response.data
+      let messagesData = [];
+      
+      if (response.data) {
+        if (response.data.success && response.data.data?.messages) {
+          messagesData = response.data.data.messages;
+        } else if (response.data.messages) {
+          messagesData = response.data.messages;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          messagesData = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          messagesData = response.data;
+        }
+      }
+      
+      if (messagesData.length > 0) {
+        const msgs = messagesData.map((m: any) => {
+          // Convert legacy message format to new enhanced format
+          const legacyMessage: LegacyMessage = {
+            id: String(m.id),
+            content: String(m.content || ''),
+            sender_type: m.sender_type === 'user' ? 'user' : 'agent',
+            sender_name: m.sender_type === 'user' ? 'You' : 'Assistant',
+            message_type: 'text' as const,
+            status: 'sent' as const,
+            tokens_used: m.tokens_used,
+            processing_time: m.processing_time,
+            created_at: String(m.created_at || new Date().toISOString()),
+            updated_at: m.updated_at
+          };
+          
+          // Convert to new enhanced message format
+          const enhancedMessage = convertLegacyMessage(legacyMessage);
+          enhancedMessage.conversationId = conversationId;
+          
+          return enhancedMessage;
+        });
+        
+        setMessages(msgs);
+        console.log('✅ Messages loaded successfully:', msgs.length);
+      } else {
+        console.log('ℹ️ No messages found in this conversation');
+        setMessages([]);
+      }
     } catch (error) {
-      console.error('Error loading messages:', error);
-      setError('Failed to load messages');
+      console.error('❌ Failed to load messages:', error);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
   };
-  
-  // Load settings from localStorage
-  const loadSettings = () => {
-    try {
-      const savedSettings = localStorage.getItem('chatSettings');
-      if (savedSettings) {
-        setSettings({ ...settings, ...JSON.parse(savedSettings) });
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
+
+  // Select conversation
+  const selectConversation = (conversation: Conversation) => {
+    console.log('📝 Selecting conversation:', conversation.title);
+    setCurrentConversation(conversation);
+    loadMessages(conversation.id, conversation.uuid);
+    
+    // Update URL
+    if (conversation.uuid) {
+      navigate(`/dashboard/chat/c/${conversation.uuid}`, { replace: true });
+    } else {
+      navigate(`/dashboard/chat/${conversation.id}`, { replace: true });
     }
   };
-  
-  // Save settings to localStorage
-  const saveSettings = (newSettings: ChatSettings) => {
-    try {
-      localStorage.setItem('chatSettings', JSON.stringify(newSettings));
-      setSettings(newSettings);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-    }
-  };
-  
+
   // Create new conversation
   const createConversation = async () => {
-    try {
-      // Use selected agent or default agent
-      const agentId = selectedAgent?.id || settings.defaultAgent || (agents.length > 0 ? agents[0].id : undefined);
-      
-      console.log('🚀 Creating conversation with agent:', agentId, selectedAgent);
-      
-      const response = await chatService.createConversation({
-        title: selectedAgent ? `Chat with ${selectedAgent.name}` : 'New Chat',
-        agent_id: agentId
-      });
-      
-      if (response.success && response.data) {
-        const newConversation = response.data;
-        
-        console.log('✅ Conversation created:', newConversation);
-        setConversations(prev => [newConversation, ...prev]);
-        setCurrentConversation(newConversation);
-        setMessages([]);
-        navigate(`/chat/${newConversation.id}`);
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      setError('Failed to create conversation');
-    }
-  };
-  
-  // Send message
-  const sendMessage = async () => {
-    if (!messageInput.trim() && selectedFiles.length === 0) return;
-    if (!currentConversation) {
-      await createConversation();
+    if (!selectedAgent) {
+      console.warn('⚠️ No agent selected, cannot create conversation');
       return;
     }
     
-    const messageText = messageInput.trim();
-    const files = [...selectedFiles];
+    try {
+      setLoading(true);
+      console.log('🔄 Creating new conversation...');
+      const response = await chatService.createConversation({
+        title: 'New Conversation',
+        agent_id: selectedAgent.id
+      });
+      
+      console.log('📊 Create conversation response:', response);
+      
+      if (response.data) {
+        let responseData = response.data;
+        
+        // Handle different response structures
+        if (response.data.success && response.data.data) {
+          responseData = response.data.data;
+        }
+        
+        const newConv: Conversation = {
+          id: String(responseData.conversation_id),
+          title: responseData.title || 'New Conversation',
+          updated_at: new Date().toISOString(),
+          created_at: responseData.created_at || new Date().toISOString(),
+          is_pinned: false,
+          is_active: true,
+          user_id: 1,
+          uuid: responseData.conversation_uuid,
+          agent_id: selectedAgent.id
+        };
+        
+        setConversations(prev => [newConv, ...prev]);
+        
+        // Navigate to new conversation
+        if (newConv.uuid) {
+          navigate(`/dashboard/chat/c/${newConv.uuid}`);
+        } else {
+          navigate(`/dashboard/chat/${newConv.id}`);
+        }
+        console.log('✅ Conversation created successfully');
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('❌ Failed to create conversation:', error);
+      alert('Failed to create conversation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Send message
+  const sendMessage = async () => {
+    if (!messageInput.trim() || !currentConversation || !selectedAgent) {
+      console.warn('⚠️ Cannot send message: missing required data');
+      return;
+    }
     
-    // Clear input
-    setMessageInput('');
-    setSelectedFiles([]);
-    setShowFileUpload(false);
+    console.log('📤 Sending message...');
     
-    // Create user message
+    // Create enhanced message with proper content structure
+    const textContent: TextContent = {
+      type: 'text',
+      text: messageInput.trim(),
+      formatted: false
+    };
+    
     const userMessage: Message = {
-      id: Date.now(),
-      conversation_id: currentConversation.id,
-      role: 'user',
-      content: messageText,
-      timestamp: new Date().toISOString(),
+      id: `temp-${Date.now()}`,
+      conversationId: currentConversation.id,
+      content: textContent,
+      rawContent: messageInput.trim(),
+      sender_type: 'user',
+      sender_name: 'You',
+      created_at: new Date().toISOString(),
       status: 'sending',
-      attachments: files.map(file => ({
-        id: Date.now().toString(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        url: URL.createObjectURL(file)
-      }))
+      attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({
+        id: file.id,
+        filename: file.name,
+        filesize: file.size,
+        mimetype: file.type,
+        url: file.preview || '',
+        status: 'uploaded' as const
+      })) : undefined
     };
     
     setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
+    setMessageInput('');
+    setAttachedFiles([]); // Clear attached files
+    setIsGeneratingResponse(true);
     
     try {
-      // Send message to backend with agent context
       const response = await chatService.sendMessage(currentConversation.id, {
-        content: messageText,
-        agent_id: selectedAgent?.id || currentConversation.agent_id,
-        attachments: files
+        content: userMessage.rawContent || messageInput.trim(),
+        agent_id: selectedAgent.id
       });
       
-      if (response.success && response.data) {
-        // Update user message status
-        setMessages(prev => prev.map(msg => 
-          msg.id === userMessage.id 
-            ? { ...msg, status: 'sent', id: response.data.user_message.id }
-            : msg
-        ));
+      console.log('📊 Send message response:', response);
+      
+      if (response.data) {
+        let responseData = response.data;
         
-        // Add AI response
-        const aiMessage: Message = {
-          id: response.data.ai_response.id,
-          conversation_id: currentConversation.id,
-          role: 'assistant',
-          content: response.data.ai_response.content,
-          timestamp: response.data.ai_response.timestamp,
-          metadata: response.data.ai_response.metadata
-        };
-        
-        setMessages(prev => [...prev, aiMessage]);
-        
-        // Update conversation title if it's the first message
-        if (messages.length === 0) {
-          const updatedConversation = {
-            ...currentConversation,
-            title: messageText.slice(0, 50) + (messageText.length > 50 ? '...' : '')
-          };
-          setCurrentConversation(updatedConversation);
-          setConversations(prev => prev.map(c => 
-            c.id === currentConversation.id ? updatedConversation : c
-          ));
+        // Handle different response structures
+        if (response.data.success && response.data.data) {
+          responseData = response.data.data;
         }
+        
+        if (responseData.ai_response) {
+          // Create enhanced AI response message
+          const aiTextContent: TextContent = {
+            type: 'text',
+            text: String(responseData.ai_response),
+            formatted: false
+          };
+          
+          const aiMessage: Message = {
+            id: responseData.message_id || `ai-${Date.now()}`,
+            conversationId: currentConversation.id,
+            content: aiTextContent,
+            rawContent: String(responseData.ai_response),
+            sender_type: 'agent',
+            sender_name: 'Assistant',
+            created_at: new Date().toISOString(),
+            status: 'sent',
+            metadata: {
+              totalTokens: responseData.tokens_used,
+              processingTime: responseData.processing_time
+            }
+          };
+          
+          // Update user message status
+          setMessages(prev => prev.map(msg => 
+            msg.id === userMessage.id 
+              ? { ...msg, status: 'sent' as const, id: responseData.user_message_id || msg.id }
+              : msg
+          ));
+          
+          // Add AI response
+          setMessages(prev => [...prev, aiMessage]);
+          console.log('✅ Message sent successfully');
+          
+          // Reload messages to ensure we have the latest data
+          setTimeout(() => {
+            loadMessages(currentConversation.id, currentConversation.uuid);
+          }, 500);
+        } else {
+          console.warn('⚠️ No ai_response found in response data:', responseData);
+        }
+      } else {
+        console.error('❌ No response data received');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Failed to send message:', error);
+      
+      // Update user message status to error
       setMessages(prev => prev.map(msg => 
         msg.id === userMessage.id 
-          ? { ...msg, status: 'error' }
+          ? { ...msg, status: 'error' as const }
           : msg
       ));
-      setError('Failed to send message');
     } finally {
-      setIsTyping(false);
+      setIsGeneratingResponse(false);
     }
   };
-  
-  // Handle file upload
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setSelectedFiles(prev => [...prev, ...files]);
-    setShowFileUpload(true);
-  };
-  
-  // Remove selected file
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    if (selectedFiles.length === 1) {
-      setShowFileUpload(false);
-    }
-  };
-  
-  // Toggle conversation pin
-  const togglePin = async (conversationId: string) => {
-    try {
-      const conversation = conversations.find(c => c.id === conversationId);
-      if (!conversation) return;
-      
-      const updatedConversation = { ...conversation, is_pinned: !conversation.is_pinned };
-      setConversations(prev => prev.map(c => 
-        c.id === conversationId ? updatedConversation : c
-      ));
-    } catch (error) {
-      console.error('Error toggling pin:', error);
-    }
-  };
-  
+
   // Delete conversation
-  const deleteConversation = async (conversationId: string) => {
-    if (!window.confirm('Are you sure you want to delete this conversation?')) return;
-    
+  const deleteConversation = async (convId: string) => {
     try {
-      await chatService.deleteConversation(conversationId);
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      console.log('🗑️ Deleting conversation:', convId);
+      await chatService.deleteConversation(convId);
+      setConversations(prev => prev.filter(c => c.id !== convId));
       
-      if (currentConversation?.id === conversationId) {
+      if (currentConversation?.id === convId) {
         setCurrentConversation(null);
         setMessages([]);
-        navigate('/chat');
+        navigate('/dashboard/chat');
       }
+      console.log('✅ Conversation deleted successfully');
     } catch (error) {
-      console.error('Error deleting conversation:', error);
-      setError('Failed to delete conversation');
+      console.error('❌ Failed to delete conversation:', error);
     }
   };
-  
-  // Scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  // Voice recording handlers
+  const handleStartListening = () => {
+    setIsListening(true);
+    console.log('🎤 Started voice recording');
+    // Implement voice recording logic
   };
-  
-  // Filter conversations based on search
-  const filteredConversations = conversations.filter(conversation =>
-    conversation.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  // Sort conversations (pinned first, then by date)
-  const sortedConversations = filteredConversations.sort((a, b) => {
-    if (a.is_pinned && !b.is_pinned) return -1;
-    if (!a.is_pinned && b.is_pinned) return 1;
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-  });
-  
-  // Get file icon
-  const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return <Image size={16} />;
-    if (fileType.includes('pdf')) return <FileText size={16} />;
-    if (fileType.includes('document') || fileType.includes('word')) return <FileText size={16} />;
-    return <File size={16} />;
+
+  const handleStopListening = () => {
+    setIsListening(false);
+    console.log('🛑 Stopped voice recording');
+    // Implement stop recording logic
   };
-  
-  // Format file size
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+  // File upload handler - Updated to match new signature
+  const handleFileUpload = async (file: UploadedFile): Promise<string> => {
+    console.log('📎 File uploaded:', file);
+    
+    try {
+      // Here you would typically upload the file to your server
+      // For now, we'll just return the preview URL or a placeholder
+      return file.preview || `uploaded://${file.name}`;
+    } catch (error) {
+      console.error('❌ File upload failed:', error);
+      throw error;
+    }
+  };
+
+  // Files change handler - New handler for file management
+  const handleFilesChange = (files: UploadedFile[]) => {
+    console.log('📁 Files changed:', files);
+    setAttachedFiles(files);
+  };
+
+  // Copy message handler
+  const handleCopyMessage = (content: string) => {
+    console.log('📋 Message copied:', content);
+    navigator.clipboard.writeText(content).catch(console.error);
+  };
+
+  // Message actions
+  const handleEditMessage = (messageId: string) => {
+    console.log('✏️ Edit message:', messageId);
+    // Implement edit functionality
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    console.log('🗑️ Delete message:', messageId);
+    // Implement delete functionality
+  };
+
+  const handleReactToMessage = (messageId: string, emoji: string) => {
+    console.log('😀 React to message:', messageId, emoji);
+    // Implement reaction functionality
+  };
+
+  const handleDownloadFile = (url: string, filename: string) => {
+    console.log('💾 Download file:', filename);
+    // Implement file download
   };
 
   return (
-    <div className={`chat-page ${settings.theme} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Sidebar */}
-      <div className="chat-sidebar">
-        <div className="sidebar-header">
-          <button 
-            className="sidebar-toggle"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <Menu size={20} />
-          </button>
-          
-          {!sidebarCollapsed && (
-            <>
-              <button className="new-chat-btn" onClick={createConversation}>
-                <Plus size={20} />
-                <span>New Chat</span>
-              </button>
-              
-              <button 
-                className="settings-btn"
-                onClick={() => setShowSettings(true)}
-                title="Settings"
-              >
-                <Settings size={20} />
-              </button>
-            </>
-          )}
+    <div className="chat-page">
+      {/* Backend Error Warning */}
+      {backendError && (
+        <div className="backend-warning">
+          <span className="warning-icon">⚠️</span>
+          Using offline mode - some features may be limited
         </div>
-        
-        {!sidebarCollapsed && (
-          <>
-            {/* Search */}
-            <div className="search-container">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
+      )}
+
+      {/* Enhanced Sidebar */}
+      <EnhancedConversationsSidebar
+        conversations={conversations}
+        selectedConversationId={currentConversation?.id}
+        loading={loading}
+        onSelectConversation={selectConversation}
+        onCreateConversation={createConversation}
+        onDeleteConversation={deleteConversation}
+      />
+
+      {/* Main Chat Area */}
+      <div className={`chat-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* Header */}
+        <ChatHeader
+          currentConversation={currentConversation}
+          selectedAgent={selectedAgent}
+          agents={agents}
+          onAgentChange={setSelectedAgent}
+          onSettingsClick={() => setShowSettings(true)}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
+
+        {/* Messages Container */}
+        <div className="messages-container">
+          {loading && !currentConversation ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              Loading conversations...
             </div>
-            
-            {/* Conversations List */}
-            <div className="conversations-list">
-              {loading && <div className="loading">Loading conversations...</div>}
-              
-              {sortedConversations.map(conversation => (
-                <div
-                  key={conversation.id}
-                  className={`conversation-item ${currentConversation?.id === conversation.id ? 'active' : ''}`}
-                  onClick={() => {
-                    setCurrentConversation(conversation);
-                    navigate(`/chat/${conversation.id}`);
-                  }}
+          ) : !currentConversation ? (
+            <div className="empty-messages-state">
+              <div className="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="48" height="48">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3>No conversation selected</h3>
+              <p>Select an existing conversation from the sidebar or create a new one to start chatting</p>
+              {agents.length > 0 && (
+                <button 
+                  onClick={createConversation}
+                  className="start-chat-btn"
                 >
-                  <div className="conversation-content">
-                    <div className="conversation-title">
-                      {conversation.is_pinned && <Pin size={12} className="pin-icon" />}
-                      <MessageSquare size={14} />
-                      <span>{conversation.title}</span>
-                    </div>
-                    <div className="conversation-meta">
-                      <span className="conversation-date">
-                        {new Date(conversation.updated_at).toLocaleDateString()}
-                      </span>
-                      {conversation.message_count && (
-                        <span className="message-count">{conversation.message_count}</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="conversation-actions">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePin(conversation.id);
-                      }}
-                      className={`action-btn ${conversation.is_pinned ? 'pinned' : ''}`}
-                      title={conversation.is_pinned ? 'Unpin' : 'Pin'}
-                    >
-                      <Pin size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteConversation(conversation.id);
-                      }}
-                      className="action-btn delete"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              
-              {!loading && sortedConversations.length === 0 && (
-                <div className="empty-state">
-                  <MessageSquare size={48} />
-                  <p>No conversations yet</p>
-                  <p>Start a new chat to get started</p>
-                </div>
+                  Start a new chat
+                </button>
               )}
             </div>
-          </>
-        )}
+          ) : (
+            <MessageList
+              messages={messages}
+              isGeneratingResponse={isGeneratingResponse}
+              aiTyping={aiTyping}
+              currentTypingText={currentTypingText}
+              onCopyMessage={handleCopyMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onReactToMessage={handleReactToMessage}
+              onDownloadFile={handleDownloadFile}
+            />
+          )}
+        </div>
+
+        {/* Input */}
+        <div className={!currentConversation ? 'no-conversation' : ''}>
+          <ChatInput
+            messageInput={messageInput}
+            setMessageInput={setMessageInput}
+            onSendMessage={sendMessage}
+            disabled={!currentConversation || isGeneratingResponse || !selectedAgent}
+            isListening={isListening}
+            onStartListening={handleStartListening}
+            onStopListening={handleStopListening}
+            onFileUpload={handleFileUpload}
+            onFilesChange={handleFilesChange}
+            placeholder={
+              !currentConversation 
+                ? "Select a conversation to start chatting" 
+                : !selectedAgent 
+                ? "Select an agent to continue"
+                : "Type your message..."
+            }
+            maxFiles={10}
+            maxFileSize={100}
+            enableImageCompression={true}
+            showFileUpload={true}
+          />
+        </div>
       </div>
-      
-      {/* Main Chat Area */}
-      <div className="chat-main">
-        {currentConversation ? (
-          <>
-            {/* Chat Header */}
-            <div className="chat-header">
-              <div className="chat-info">
-                <div className="chat-title">
-                  <Bot size={20} />
-                  <span>{currentConversation.title}</span>
-                </div>
-                <div className="chat-meta">
-                  {currentConversation.agent_id && (
-                    <span className="agent-info">
-                      {agents.find(a => a.id === currentConversation.agent_id)?.name || 'Unknown Agent'}
-                    </span>
-                  )}
-                  <span className="message-count">{messages.length} messages</span>
-                </div>
-              </div>
-              
-              {/* Agent Selector */}
-              <div className="agent-selector-container">
-                <ModelSelector
-                  agents={agents}
-                  selectedAgent={selectedAgent}
-                  onAgentChange={setSelectedAgent}
-                  isLoading={loading}
-                />
-              </div>
-              
-              <div className="chat-actions">
-                <button
-                  onClick={() => togglePin(currentConversation.id)}
-                  className={`action-btn ${currentConversation.is_pinned ? 'pinned' : ''}`}
-                  title={currentConversation.is_pinned ? 'Unpin' : 'Pin'}
-                >
-                  <Pin size={18} />
-                </button>
-                
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="action-btn"
-                  title="Settings"
-                >
-                  <Settings size={18} />
-                </button>
-                
-                <button
-                  onClick={() => deleteConversation(currentConversation.id)}
-                  className="action-btn delete"
-                  title="Delete conversation"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-            
-            {/* Messages Area */}
-            <div className="messages-container">
-              <div className="messages-list">
-                {messages.map(message => (
-                  <div key={message.id} className={`message ${message.role}`}>
-                    <div className="message-avatar">
-                      {message.role === 'user' ? (
-                        <div className="user-avatar">
-                          {user?.username?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                      ) : (
-                        <Bot size={20} />
-                      )}
-                    </div>
-                    
-                    <div className="message-content">
-                      <div className="message-header">
-                        <span className="sender-name">
-                          {message.role === 'user' ? user?.username || 'You' : 'Assistant'}
-                        </span>
-                        <span className="message-time">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </span>
-                        {message.status && (
-                          <span className={`message-status ${message.status}`}>
-                            {message.status === 'sending' && <Clock size={12} />}
-                            {message.status === 'sent' && <CheckCircle size={12} />}
-                            {message.status === 'error' && <AlertTriangle size={12} />}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="message-text">
-                        {message.content}
-                      </div>
-                      
-                      {/* File Attachments */}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="message-attachments">
-                          {message.attachments.map(attachment => (
-                            <div key={attachment.id} className="attachment">
-                              {getFileIcon(attachment.type)}
-                              <span className="attachment-name">{attachment.name}</span>
-                              <span className="attachment-size">
-                                {formatFileSize(attachment.size)}
-                              </span>
-                              <button
-                                onClick={() => window.open(attachment.url, '_blank')}
-                                className="attachment-download"
-                                title="Download"
-                              >
-                                <Download size={14} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Message Metadata */}
-                      {message.metadata && (
-                        <div className="message-metadata">
-                          {message.metadata.tokens && (
-                            <span className="metadata-item">
-                              <Zap size={12} />
-                              {message.metadata.tokens} tokens
-                            </span>
-                          )}
-                          {message.metadata.response_time && (
-                            <span className="metadata-item">
-                              <Clock size={12} />
-                              {message.metadata.response_time.toFixed(2)}s
-                            </span>
-                          )}
-                          {message.metadata.confidence && (
-                            <span className="metadata-item">
-                              <ThumbsUp size={12} />
-                              {(message.metadata.confidence * 100).toFixed(0)}%
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      
-                      <div className="message-actions">
-                        <button
-                          onClick={() => navigator.clipboard.writeText(message.content)}
-                          className="action-btn"
-                          title="Copy"
-                        >
-                          <Copy size={14} />
-                        </button>
-                        {message.role === 'assistant' && (
-                          <>
-                            <button className="action-btn" title="Like">
-                              <ThumbsUp size={14} />
-                            </button>
-                            <button className="action-btn" title="Dislike">
-                              <ThumbsDown size={14} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {isTyping && (
-                  <div className="message assistant typing">
-                    <div className="message-avatar">
-                      <Bot size={20} />
-                    </div>
-                    <div className="message-content">
-                      <div className="typing-indicator">
-                        <div className="typing-dot"></div>
-                        <div className="typing-dot"></div>
-                        <div className="typing-dot"></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-            
-            {/* File Upload Preview */}
-            {showFileUpload && selectedFiles.length > 0 && (
-              <div className="file-upload-preview">
-                <div className="files-list">
-                  {selectedFiles.map((file, index) => (
-                    <div key={index} className="file-item">
-                      {getFileIcon(file.type)}
-                      <span className="file-name">{file.name}</span>
-                      <span className="file-size">{formatFileSize(file.size)}</span>
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="remove-file"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Input Area */}
-            <div className="chat-input-area">
-              <div className="input-container">
-                <div className="input-actions">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="action-btn"
-                    title="Attach file"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-                  
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="action-btn"
-                    title="Upload image"
-                  >
-                    <Image size={20} />
-                  </button>
-                  
-                  <button className="action-btn" title="Voice message">
-                    <Mic size={20} />
-                  </button>
-                </div>
-                
-                <textarea
-                  ref={textareaRef}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder="Type your message here... (Shift+Enter for new line)"
-                  className="message-input"
-                  disabled={loading}
-                />
-                
-                <button
-                  onClick={sendMessage}
-                  disabled={!messageInput.trim() && selectedFiles.length === 0}
-                  className="send-btn"
-                  title="Send message"
-                >
-                  <Send size={20} />
-                </button>
-              </div>
-              
-              {/* Quick Actions */}
-              <div className="quick-actions">
-                <button className="quick-action">📝 Summarize</button>
-                <button className="quick-action">🔍 Analyze</button>
-                <button className="quick-action">💡 Explain</button>
-                <button className="quick-action">🐛 Debug</button>
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Welcome Screen */
-          <div className="welcome-screen">
-            <div className="welcome-content">
-              <Bot size={64} className="welcome-icon" />
-              <h1>Welcome to DPRO AI Chat</h1>
-              <p>Start a conversation with our AI assistants</p>
-              
-              <div className="welcome-features">
-                <div className="feature">
-                  <Upload size={24} />
-                  <h3>File Upload</h3>
-                  <p>Upload images, documents, and code files</p>
-                </div>
-                <div className="feature">
-                  <Bot size={24} />
-                  <h3>Multiple Agents</h3>
-                  <p>Choose from different AI models and agents</p>
-                </div>
-                <div className="feature">
-                  <Globe size={24} />
-                  <h3>MCP Integration</h3>
-                  <p>Connect external tools and services</p>
-                </div>
-                <div className="feature">
-                  <Settings size={24} />
-                  <h3>Customizable</h3>
-                  <p>Adjust settings to match your preferences</p>
-                </div>
-              </div>
-              
-              <button onClick={createConversation} className="start-chat-btn">
-                <Plus size={20} />
-                Start New Chat
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,.pdf,.doc,.docx,.txt,.json,.csv,.py,.js,.tsx,.jsx,.html,.css,.md"
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-      />
-      
+
       {/* Settings Modal */}
       {showSettings && (
-        <ChatSettingsModal
-          settings={settings}
-          onSave={saveSettings}
+        <AdvancedSettingsModal
           onClose={() => setShowSettings(false)}
           agents={agents}
         />
       )}
-      
-      {/* Error Toast */}
-      {error && (
-        <div className="error-toast">
-          <AlertTriangle size={16} />
-          <span>{error}</span>
-          <button onClick={() => setError(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Settings Modal Component
-interface ChatSettingsModalProps {
-  settings: ChatSettings;
-  onSave: (settings: ChatSettings) => void;
-  onClose: () => void;
-  agents: Agent[];
-}
-
-const ChatSettingsModal: React.FC<ChatSettingsModalProps> = ({ settings, onSave, onClose, agents }) => {
-  const [activeTab, setActiveTab] = useState('general');
-  const [localSettings, setLocalSettings] = useState<ChatSettings>(settings);
-  
-  const handleSave = () => {
-    onSave(localSettings);
-    onClose();
-  };
-  
-  const updateSetting = (key: keyof ChatSettings, value: any) => {
-    setLocalSettings(prev => ({ ...prev, [key]: value }));
-  };
-  
-  return (
-    <div className="settings-modal-overlay" onClick={onClose}>
-      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="settings-header">
-          <h2>Chat Settings</h2>
-          <button onClick={onClose} className="close-btn">
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="settings-tabs">
-          <button
-            className={`tab ${activeTab === 'general' ? 'active' : ''}`}
-            onClick={() => setActiveTab('general')}
-          >
-            <Settings size={16} />
-            General
-          </button>
-          <button
-            className={`tab ${activeTab === 'model' ? 'active' : ''}`}
-            onClick={() => setActiveTab('model')}
-          >
-            <Bot size={16} />
-            AI Model
-          </button>
-          <button
-            className={`tab ${activeTab === 'advanced' ? 'active' : ''}`}
-            onClick={() => setActiveTab('advanced')}
-          >
-            <Sliders size={16} />
-            Advanced
-          </button>
-          <button
-            className={`tab ${activeTab === 'mcp' ? 'active' : ''}`}
-            onClick={() => setActiveTab('mcp')}
-          >
-            <Globe size={16} />
-            MCP Servers
-          </button>
-          <button
-            className={`tab ${activeTab === 'privacy' ? 'active' : ''}`}
-            onClick={() => setActiveTab('privacy')}
-          >
-            <Shield size={16} />
-            Privacy
-          </button>
-        </div>
-        
-        <div className="settings-content">
-          {activeTab === 'general' && (
-            <div className="settings-section">
-              <h3>General Settings</h3>
-              
-              <div className="setting-group">
-                <label>Theme</label>
-                <select
-                  value={localSettings.theme}
-                  onChange={(e) => updateSetting('theme', e.target.value)}
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="system">System</option>
-                </select>
-              </div>
-              
-              <div className="setting-group">
-                <label>Language</label>
-                <select
-                  value={localSettings.language}
-                  onChange={(e) => updateSetting('language', e.target.value)}
-                >
-                  <option value="en">English</option>
-                  <option value="ar">العربية</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                </select>
-              </div>
-              
-              <div className="setting-group">
-                <label>Font Size</label>
-                <select
-                  value={localSettings.fontSize}
-                  onChange={(e) => updateSetting('fontSize', e.target.value)}
-                >
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                </select>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.soundEnabled}
-                    onChange={(e) => updateSetting('soundEnabled', e.target.checked)}
-                  />
-                  Enable sound effects
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.notificationsEnabled}
-                    onChange={(e) => updateSetting('notificationsEnabled', e.target.checked)}
-                  />
-                  Enable notifications
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.autoSave}
-                    onChange={(e) => updateSetting('autoSave', e.target.checked)}
-                  />
-                  Auto-save conversations
-                </label>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'model' && (
-            <div className="settings-section">
-              <h3>AI Model Settings</h3>
-              
-              <div className="setting-group">
-                <label>Default Agent</label>
-                <select
-                  value={localSettings.defaultAgent || ''}
-                  onChange={(e) => updateSetting('defaultAgent', e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">Select an agent...</option>
-                  {agents.map(agent => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name} ({agent.model_provider})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="setting-group">
-                <label>Temperature: {localSettings.temperature}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={localSettings.temperature}
-                  onChange={(e) => updateSetting('temperature', Number(e.target.value))}
-                />
-              </div>
-              
-              <div className="setting-group">
-                <label>Max Tokens</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="32000"
-                  value={localSettings.maxTokens}
-                  onChange={(e) => updateSetting('maxTokens', Number(e.target.value))}
-                />
-              </div>
-              
-              <div className="setting-group">
-                <label>Top P: {localSettings.topP}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={localSettings.topP}
-                  onChange={(e) => updateSetting('topP', Number(e.target.value))}
-                />
-              </div>
-              
-              <div className="setting-group">
-                <label>System Prompt</label>
-                <textarea
-                  value={localSettings.systemPrompt}
-                  onChange={(e) => updateSetting('systemPrompt', e.target.value)}
-                  placeholder="Enter system prompt..."
-                  rows={4}
-                />
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'advanced' && (
-            <div className="settings-section">
-              <h3>Advanced Settings</h3>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.streamResponses}
-                    onChange={(e) => updateSetting('streamResponses', e.target.checked)}
-                  />
-                  Stream responses
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.saveHistory}
-                    onChange={(e) => updateSetting('saveHistory', e.target.checked)}
-                  />
-                  Save chat history
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.enableAnalytics}
-                    onChange={(e) => updateSetting('enableAnalytics', e.target.checked)}
-                  />
-                  Enable analytics
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.autoTranslate}
-                    onChange={(e) => updateSetting('autoTranslate', e.target.checked)}
-                  />
-                  Auto-translate messages
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.contentModeration}
-                    onChange={(e) => updateSetting('contentModeration', e.target.checked)}
-                  />
-                  Content moderation
-                </label>
-              </div>
-              
-              <div className="setting-group">
-                <label>Max Conversations</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={localSettings.maxConversations}
-                  onChange={(e) => updateSetting('maxConversations', Number(e.target.value))}
-                />
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'mcp' && (
-            <div className="settings-section">
-              <h3>MCP Server Integration</h3>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.enableMCP}
-                    onChange={(e) => updateSetting('enableMCP', e.target.checked)}
-                  />
-                  Enable MCP Server connections
-                </label>
-              </div>
-              
-              <div className="mcp-servers">
-                <h4>Connected Servers</h4>
-                {localSettings.mcpServers.length === 0 ? (
-                  <div className="empty-state">
-                    <Terminal size={32} />
-                    <p>No MCP servers connected</p>
-                    <button className="btn-primary">
-                      <Plus size={16} />
-                      Add Server
-                    </button>
-                  </div>
-                ) : (
-                  localSettings.mcpServers.map(server => (
-                    <div key={server.id} className="mcp-server">
-                      <div className="server-info">
-                        <h5>{server.name}</h5>
-                        <p>{server.url}</p>
-                        <span className={`status ${server.status}`}>
-                          {server.status}
-                        </span>
-                      </div>
-                      <div className="server-actions">
-                        <button className="btn-secondary">Edit</button>
-                        <button className="btn-danger">Remove</button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'privacy' && (
-            <div className="settings-section">
-              <h3>Privacy Settings</h3>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.shareData}
-                    onChange={(e) => updateSetting('shareData', e.target.checked)}
-                  />
-                  Share data for improvement
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.anonymousUsage}
-                    onChange={(e) => updateSetting('anonymousUsage', e.target.checked)}
-                  />
-                  Anonymous usage analytics
-                </label>
-              </div>
-              
-              <div className="setting-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={localSettings.encryptData}
-                    onChange={(e) => updateSetting('encryptData', e.target.checked)}
-                  />
-                  Encrypt stored data
-                </label>
-              </div>
-              
-              <div className="setting-group">
-                <label>Auto-delete after (days)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={localSettings.autoDeleteAfter}
-                  onChange={(e) => updateSetting('autoDeleteAfter', Number(e.target.value))}
-                />
-              </div>
-              
-              <div className="danger-zone">
-                <h4>Danger Zone</h4>
-                <button className="btn-danger">
-                  <Trash2 size={16} />
-                  Clear All Data
-                </button>
-                <button className="btn-danger">
-                  <Database size={16} />
-                  Export Data
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="settings-footer">
-          <button onClick={onClose} className="btn-secondary">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="btn-primary">
-            <Save size={16} />
-            Save Settings
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

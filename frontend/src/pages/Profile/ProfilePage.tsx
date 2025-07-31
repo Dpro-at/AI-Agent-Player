@@ -97,7 +97,7 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         {message && (
-          <div className={mb-6 p-4 rounded-md }>
+          <div className={`mb-6 p-4 rounded-md ${message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
             {message.text}
           </div>
         )}
@@ -202,7 +202,7 @@ export const ProfilePage: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={saving}
-            className={px-6 py-2 rounded-md transition-colors text-white }
+            className={`px-6 py-2 rounded-md transition-colors text-white ${saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

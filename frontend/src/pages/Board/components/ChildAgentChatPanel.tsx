@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import chatService from '../../../services/chat';
+import agentsService from '../../../services/agents';
 
 interface ChildAgent {
   id: string;
@@ -16,14 +18,17 @@ interface ChatMessage {
   sender: 'user' | 'agent';
   timestamp: Date;
   type?: 'text' | 'suggestion' | 'command';
-  metadata?: any;
+  metadata?: {
+    tokens_used?: number;
+    processing_time?: number;
+  };
 }
 
 interface ChildAgentChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   selectedAgent?: ChildAgent;
-  onAgentSelect: (agent: ChildAgent) => void;
+  onAgentSelect: (agent?: ChildAgent) => void;
   boardId: string;
   isBottomPanel?: boolean;
 }
@@ -42,6 +47,9 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [currentConversation, setCurrentConversation] = useState<{id: string; title: string; agent_id: number} | null>(null);
+  const [realAgent, setRealAgent] = useState<{id: number; name: string; model_name?: string} | null>(null);
+  const [mainAgent, setMainAgent] = useState<{id: number; name: string; model_name?: string} | null>(null);
   
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const resizerRef = useRef<HTMLDivElement>(null);
@@ -115,28 +123,191 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
     }
   ];
 
-  // Keyboard shortcuts
-  const shortcuts = [
-    { key: 'Ctrl + /', action: 'Show commands' },
-    { key: 'Ctrl + K', action: 'Clear chat' },
-    { key: 'Ctrl + Enter', action: 'Send message' },
-    { key: 'Esc', action: 'Close chat' },
-    { key: 'Ctrl + M', action: 'Maximize/Minimize' }
-  ];
 
-  // Initialize welcome message when agent is selected
+
+  // Load real agent and create conversation when agent is selected
   useEffect(() => {
-    if (selectedAgent && messages.length === 0) {
-      const welcomeMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        content: `Hello! I'm ${selectedAgent.name}, your ${selectedAgent.type} assistant. I'm here to help you with your workflow board. What would you like to work on?`,
-        sender: 'agent',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages([welcomeMessage]);
+    const loadRealAgent = async () => {
+      if (selectedAgent) {
+        try {
+          // Get agents from API to find the real agent
+          const agents = await agentsService.getAgents();
+          
+          // Find agent by ID from URL params if it's a real agent ID
+          const urlAgentId = window.location.pathname.match(/\/board\/child-agent\/(\d+)/)?.[1];
+          
+          let agent = null;
+          if (urlAgentId) {
+            agent = agents.find((a: {id: number; name: string; model_name?: string}) => a.id === parseInt(urlAgentId));
+            console.log(`🎯 Board looking for agent ID ${urlAgentId}, found:`, agent);
+          }
+          
+          // If not found by URL, use first available agent
+          if (!agent && agents.length > 0) {
+            agent = agents[0];
+            console.log('🔄 Board using first available agent:', agent);
+          }
+          
+          if (!agent) {
+            console.error('❌ Board: No agents available!');
+            return;
+          }
+          
+          setRealAgent(agent);
+          
+          // Find the main agent for this child agent
+          let mainAgentId = agent.id;
+          let mainAgent = agent;
+          
+          console.log('🔍 Current agent type:', agent.agent_type);
+          console.log('🔍 Current agent parent_agent_id:', agent.parent_agent_id);
+          
+          if (agent.agent_type === 'child' && agent.parent_agent_id) {
+            mainAgentId = agent.parent_agent_id;
+            // Find the actual main agent object
+            const foundMainAgent = agents.find((a: {id: number; name: string; agent_type: string}) => a.id === agent.parent_agent_id);
+            if (foundMainAgent) {
+              mainAgent = foundMainAgent;
+            }
+            console.log('🔗 Child agent detected, using parent agent ID:', mainAgentId);
+            console.log('🔗 Found parent agent:', mainAgent?.name);
+          } else if (agent.agent_type === 'child') {
+            // If no parent_agent_id, try to find main agent
+            const mainAgents = agents.filter((a: {id: number; name: string; agent_type: string}) => a.agent_type === 'main');
+            if (mainAgents.length > 0) {
+              mainAgent = mainAgents[0];
+              mainAgentId = mainAgent.id;
+              console.log('🔗 No parent found, using first available main agent:', mainAgent.name);
+            }
+          }
+          
+          // Use the main agent for conversation but keep original agent for display
+          if (mainAgent && mainAgent.id !== agent.id) {
+            console.log(`✅ Will chat with Main Agent "${mainAgent.name}" (ID: ${mainAgent.id}) for Child Agent "${agent.name}" (ID: ${agent.id})`);
+          }
+          
+          // Set the main agent for sending messages
+          setMainAgent(mainAgent || agent);
+          
+          // Create or get conversation for this board
+          try {
+            console.log('🚀 Board creating conversation with:', {
+              title: `Board ${boardId} - ${agent.name}`,
+              agent_id: mainAgentId
+            });
+            
+            const conversationResponse = await chatService.createConversation({
+              title: `Board ${boardId} - ${agent.name}`,
+              agent_id: mainAgentId
+            });
+            
+            console.log('🔍 Board conversation response FULL:', JSON.stringify(conversationResponse, null, 2));
+            
+            // Handle different response structures
+            let conversationData = null;
+            if (conversationResponse.data) {
+              console.log('🔍 Board parsing - data exists, checking structure...');
+              console.log('🔍 Board parsing - data.id exists?', !!conversationResponse.data.id);
+              console.log('🔍 Board parsing - data.title exists?', !!conversationResponse.data.title);
+              console.log('🔍 Board parsing - data.data exists?', !!conversationResponse.data.data);
+              
+              if (conversationResponse.data.data) {
+                console.log('🔍 Board parsing - data.data.id exists?', !!conversationResponse.data.data.id);
+                console.log('🔍 Board parsing - data.data.conversation_id exists?', !!conversationResponse.data.data.conversation_id);
+                console.log('🔍 Board parsing - data.data.conversation_uuid exists?', !!conversationResponse.data.data.conversation_uuid);
+              }
+              
+              // Direct data structure (when API returns conversation directly)
+              if (conversationResponse.data.id && conversationResponse.data.title) {
+                console.log('✅ Board parsing - Using direct structure');
+                conversationData = conversationResponse.data;
+              }
+              // Nested data structure (when API returns {data: conversation})
+              else if (conversationResponse.data.data && conversationResponse.data.data.id) {
+                console.log('✅ Board parsing - Using nested structure with id');
+                conversationData = conversationResponse.data.data;
+              }
+              // Board-specific structure: {success: true, data: {conversation_id, conversation_uuid, ...}}
+              else if (conversationResponse.data.data && (conversationResponse.data.data.conversation_id || conversationResponse.data.data.conversation_uuid)) {
+                console.log('✅ Board parsing - Using Board-specific structure');
+                const nestedData = conversationResponse.data.data;
+                conversationData = {
+                  id: nestedData.conversation_uuid || nestedData.conversation_id?.toString(),
+                  title: nestedData.title,
+                  agent_id: nestedData.agent_id,
+                  uuid: nestedData.conversation_uuid,
+                  conversation_id: nestedData.conversation_id
+                };
+                console.log('✅ Board parsing - Created conversationData:', conversationData);
+              } else {
+                console.log('❌ Board parsing - No matching structure found');
+              }
+            } else {
+              console.log('❌ Board parsing - No data in response');
+            }
+            
+            console.log('🔍 Board conversation data:', conversationData);
+            
+            if (conversationData && conversationData.id) {
+              setCurrentConversation(conversationData);
+              console.log('✅ Board conversation set:', conversationData.id);
+            } else {
+              console.error('❌ Invalid conversation data structure. Full response:', conversationResponse);
+              console.error('❌ Response.data type:', typeof conversationResponse.data);
+              console.error('❌ Response.data keys:', conversationResponse.data ? Object.keys(conversationResponse.data) : 'No data');
+              
+              // Try alternative approaches to extract conversation ID
+              if (conversationResponse.data) {
+                const data = conversationResponse.data;
+                
+                // Check if the response itself has conversation-like properties
+                if (data.uuid || data.conversation_uuid || data.conversation_id || data.id) {
+                  const fallbackConversation = {
+                    id: data.uuid || data.conversation_uuid || data.conversation_id?.toString() || data.id,
+                    title: data.title || `Board ${boardId} - ${agent.name}`,
+                    agent_id: agent.id
+                  };
+                  setCurrentConversation(fallbackConversation);
+                  console.log('🔄 Board conversation set via fallback:', fallbackConversation.id);
+                }
+                // Check nested data structure for Board API
+                else if (data.data && (data.data.conversation_uuid || data.data.conversation_id)) {
+                  const nestedData = data.data;
+                  const fallbackConversation = {
+                    id: nestedData.conversation_uuid || nestedData.conversation_id?.toString(),
+                    title: nestedData.title || `Board ${boardId} - ${agent.name}`,
+                    agent_id: agent.id,
+                    uuid: nestedData.conversation_uuid,
+                    conversation_id: nestedData.conversation_id
+                  };
+                  setCurrentConversation(fallbackConversation);
+                  console.log('🔄 Board conversation set via nested fallback:', fallbackConversation.id);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('❌ Failed to create Board conversation:', error);
+          }
+          
+          // Add welcome message if this is a fresh conversation
+          const welcomeMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            content: `Hello! I'm ${selectedAgent.name}, your ${selectedAgent.type} assistant. I'm here to help you with your workflow board. What would you like to work on?`,
+            sender: 'agent',
+            timestamp: new Date(),
+            type: 'text'
+          };
+          setMessages([welcomeMessage]);
+        } catch (error) {
+          console.error('Failed to load real agent:', error);
+        }
+      }
+    };
+    
+    if (selectedAgent && !realAgent) {
+      loadRealAgent();
     }
-  }, [selectedAgent]);
+  }, [selectedAgent, boardId, realAgent, mainAgent]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -151,7 +322,6 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
       const chatPanel = chatPanelRef.current;
       if (!chatPanel) return;
 
-      const rect = chatPanel.getBoundingClientRect();
       const newHeight = window.innerHeight - e.clientY;
       
       if (newHeight >= 200 && newHeight <= window.innerHeight * 0.8) {
@@ -175,11 +345,25 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
   }, [isDragging]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || !selectedAgent) return;
+    console.log('🔍 Board handleSendMessage - currentConversation:', currentConversation);
+    console.log('🔍 Board handleSendMessage - realAgent:', realAgent);
+    console.log('🔍 Board handleSendMessage - mainAgent:', mainAgent);
+    
+    if (!inputValue.trim() || !selectedAgent || !currentConversation || !mainAgent) {
+      console.log('❌ Board handleSendMessage validation failed:', {
+        inputValue: inputValue.trim(),
+        selectedAgent: !!selectedAgent,
+        currentConversation: !!currentConversation,
+        mainAgent: !!mainAgent
+      });
+      return;
+    }
 
+    const messageText = inputValue.trim();
+    
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
-      content: inputValue,
+      content: messageText,
       sender: 'user',
       timestamp: new Date(),
       type: 'text'
@@ -189,49 +373,76 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate agent response
-    setTimeout(() => {
-      const agentResponse: ChatMessage = {
-        id: `msg-${Date.now()}-response`,
-        content: generateAgentResponse(inputValue, selectedAgent),
+    try {
+      // Send real message to API
+      console.log('🚀 Board sending message to conversation:', currentConversation.id);
+      console.log('🚀 Board message payload:', {
+        content: messageText,
+        agent_id: mainAgent.id
+      });
+      
+      const response = await chatService.sendMessage(currentConversation.id, {
+        content: messageText,
+        agent_id: mainAgent.id
+      });
+
+      if (response.data) {
+        let responseData = response.data;
+        
+        // Handle different response structures
+        if (response.data.success && response.data.data) {
+          responseData = response.data.data;
+        }
+
+        if (responseData.ai_response) {
+          const agentResponse: ChatMessage = {
+            id: responseData.message_id || `msg-${Date.now()}-response`,
+            content: String(responseData.ai_response),
+            sender: 'agent',
+            timestamp: new Date(),
+            type: 'text',
+            metadata: {
+              tokens_used: responseData.tokens_used,
+              processing_time: responseData.processing_time
+            }
+          };
+          
+          setMessages(prev => [...prev, agentResponse]);
+          console.log('✅ Board chat message sent successfully');
+        } else {
+          console.warn('⚠️ No ai_response found in response data:', responseData);
+          // Fallback to local response if API fails
+          const fallbackResponse: ChatMessage = {
+            id: `msg-${Date.now()}-fallback`,
+            content: `I understand you're asking about "${messageText}". As your ${selectedAgent.type} assistant, I can help you implement this in your workflow. Could you provide more details about what you'd like to achieve?`,
+            sender: 'agent',
+            timestamp: new Date(),
+            type: 'text'
+          };
+          setMessages(prev => [...prev, fallbackResponse]);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to send message:', error);
+      
+      // Fallback to local response if API fails
+      const errorResponse: ChatMessage = {
+        id: `msg-${Date.now()}-error`,
+        content: `I understand you're asking about "${messageText}". As your ${selectedAgent.type} assistant, I can help you implement this in your workflow. Could you provide more details about what you'd like to achieve?`,
         sender: 'agent',
         timestamp: new Date(),
         type: 'text'
       };
-      setMessages(prev => [...prev, agentResponse]);
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 2000);
+    }
   };
 
-  const generateAgentResponse = (userInput: string, agent: ChildAgent): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('optimize') || input.includes('improve')) {
-      return `I can help optimize your workflow! Based on my analysis of Board ${boardId}, I suggest adding parallel processing nodes and error handling. Would you like me to show you specific improvements?`;
-    }
-    
-    if (input.includes('api') || input.includes('integration')) {
-      return `Great! I specialize in API integrations. For this board, I can help you set up webhooks, data transformations, and external service connections. What service would you like to integrate?`;
-    }
-    
-    if (input.includes('error') || input.includes('debug')) {
-      return `I can help you add robust error handling to your workflow. I recommend adding try-catch nodes, retry logic, and notification systems. Shall I add these to your board?`;
-    }
-    
-    if (input.includes('help') || input.includes('?')) {
-      return `I'm here to help with your ${agent.type} needs! I can assist with: ${agent.capabilities.join(', ')}. Just ask me about any workflow challenges you're facing.`;
-    }
 
-    return `I understand you're asking about "${userInput}". As your ${agent.type} assistant, I can help you implement this in your workflow. Could you provide more details about what you'd like to achieve?`;
-  };
 
-  const handleSuggestionClick = (suggestion: any) => {
+  const handleSuggestionClick = (suggestion: {text: string}) => {
     setInputValue(suggestion.text);
-  };
-
-  const handleCommandClick = (command: string) => {
-    setInputValue(command);
-    handleSendMessage();
   };
 
   const clearChat = () => {
@@ -598,9 +809,8 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
-                        if (e.ctrlKey) {
-                          handleSendMessage();
-                        }
+                        e.preventDefault();
+                        handleSendMessage();
                       }
                     }}
                     placeholder={`Ask ${selectedAgent.name} anything...`}
@@ -675,7 +885,7 @@ export const ChildAgentChatPanel: React.FC<ChildAgentChatPanelProps> = ({
                   </div>
                   
                   <div style={{ fontSize: '10px', color: '#999' }}>
-                    Ctrl+Enter to send
+                    Enter to send
                   </div>
                 </div>
               </div>

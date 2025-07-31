@@ -168,6 +168,7 @@ function DashboardLayout() {
           <Route path="child-agents" element={<ChildAgentPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="chat/:chatId" element={<ChatPage />} />
+          <Route path="chat/c/:conversationUuid" element={<ChatPage />} /> {/* NEW: UUID-based URLs like ChatGPT */}
           <Route path="form-builder" element={<FormBuilderPage />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="training-lab" element={<TrainingLabPage />} />

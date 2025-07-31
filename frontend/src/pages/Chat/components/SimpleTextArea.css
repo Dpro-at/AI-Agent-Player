@@ -1,0 +1,100 @@
+/* ============================================================================
+   📝 SIMPLE TEXT AREA - CLEAN CHAT INPUT
+   ============================================================================ */
+
+.simple-textarea-container {
+  width: 100%;
+  position: relative;
+}
+
+.simple-textarea-wrapper {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.simple-textarea-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.simple-textarea-wrapper.disabled {
+  background: var(--bg-secondary);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.simple-textarea-wrapper.over-limit {
+  border-color: var(--error);
+}
+
+.simple-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 16px;
+  resize: none;
+  transition: all 0.2s ease;
+}
+
+.simple-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.simple-textarea:disabled {
+  cursor: not-allowed;
+}
+
+.character-count {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.character-count .over-limit {
+  color: var(--error);
+}
+
+/* Auto-resize animation */
+.simple-textarea {
+  transition: height 0.1s ease;
+}
+
+/* Focus state */
+.simple-textarea:focus {
+  outline: none;
+}
+
+/* RTL Support */
+[dir="rtl"] .simple-textarea {
+  text-align: right;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .simple-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 10px 12px;
+  }
+  
+  .character-count {
+    bottom: 2px;
+    right: 6px;
+    font-size: 10px;
+  }
+}

@@ -1,0 +1,276 @@
+/* ============================================================================
+   ⌨️ CHAT INPUT COMPONENT - CLEAN & FUNCTIONAL
+   ============================================================================ */
+
+.chat-input-container {
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.chat-input-container.no-conversation {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.input-actions.left {
+  order: 1;
+}
+
+.message-input-wrapper {
+  flex: 1;
+  order: 2;
+  min-width: 0;
+}
+
+.input-actions.right {
+  order: 3;
+}
+
+.action-button {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  position: relative;
+}
+
+.action-button:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.action-button.active,
+.file-upload-button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.send-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.input-helper {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.file-count-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 8px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Voice Recording States */
+.voice-button.listening {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.recording-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+/* File Upload Section */
+.file-upload-section {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+  margin: 0 0 16px 0;
+}
+
+.chat-file-upload {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  background: var(--bg-secondary);
+  transition: all 0.2s ease;
+}
+
+.chat-file-upload:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* Attached Files Summary */
+.attached-files-summary {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.summary-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.files-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.view-files-button,
+.clear-files-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.view-files-button:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.clear-files-button {
+  color: var(--error);
+}
+
+.clear-files-button:hover {
+  background: var(--error);
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .chat-input-container {
+    padding: 12px 16px;
+  }
+  
+  .input-wrapper {
+    gap: 6px;
+  }
+  
+  .action-button,
+  .send-button {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .input-helper {
+    font-size: 10px;
+    margin-top: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-input-container {
+    padding: 10px 12px;
+  }
+  
+  .action-button,
+  .send-button {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
